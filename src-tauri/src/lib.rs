@@ -1,3 +1,6 @@
+use tauri::Manager;
+
+mod logger;
 mod storage;
 
 #[derive(serde::Serialize)]
@@ -31,23 +34,21 @@ fn create_credential(
     credential: CreateCredential,
 ) -> Result<(), String> {
     storage::insert_credential(&app, &credential)
-        .map_err(|error| error.to_string())
-}
+        .map_err(|error| error.to_string())?;
 
-#[tauri::command]
-fn get_credential() -> Credential {
-    Credential {
-        id: String::from("default-id"),
-        title: String::from("API Key"),
-        provider: String::from("OpenAI"),
-        credential_type: String::from("API Key"),
-        api_key: String::from("not-displayed"),
-        secret_key: None,
-        notes: None,
-        tags: vec![],
-        created_at: String::from("2026-09-01"),
-        updated_at: String::from("2026-09-01"),
-    }
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?;
+
+    logger::log(
+        &app_data_dir,
+        "INFO",
+        &format!("Credential saved: {}", credential.title),
+    )
+    .map_err(|error| error.to_string())?;
+
+    Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -55,8 +56,23 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
+            let app_data_dir = app
+                .path()
+                .app_data_dir()
+                .expect("failed to get app data directory");
+
+            std::fs::create_dir_all(&app_data_dir)
+                .expect("failed to create app data directory");
+
+            logger::log(&app_data_dir, "INFO", "KeyVault started")
+                .expect("failed to write startup log");
+
             storage::initialize_database(app.handle())
                 .expect("failed to initialize database");
+
+            logger::log(&app_data_dir, "INFO", "Database initialized")
+                .expect("failed to write database log");
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![create_credential])
