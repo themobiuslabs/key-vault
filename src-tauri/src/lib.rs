@@ -4,28 +4,28 @@ mod logger;
 mod storage;
 
 #[derive(serde::Serialize)]
-struct Credential {
-    id: String,
-    title: String,
-    provider: String,
-    credential_type: String,
-    api_key: String,
-    secret_key: Option<String>,
-    notes: Option<String>,
-    tags: Vec<String>,
-    created_at: String,
-    updated_at: String,
+pub struct Credential {
+    pub id: String,
+    pub title: String,
+    pub provider: String,
+    pub credential_type: String,
+    pub api_key: String,
+    pub secret_key: Option<String>,
+    pub notes: Option<String>,
+    pub tags: Vec<String>,
+    pub created_at: String,
+    pub updated_at: String,
 }
 
 #[derive(serde::Deserialize)]
-struct CreateCredential {
-    title: String,
-    provider: String,
-    credential_type: String,
-    api_key: String,
-    secret_key: Option<String>,
-    notes: Option<String>,
-    tags: Vec<String>,
+pub struct CreateCredential {
+    pub title: String,
+    pub provider: String,
+    pub credential_type: String,
+    pub api_key: String,
+    pub secret_key: Option<String>,
+    pub notes: Option<String>,
+    pub tags: Vec<String>,
 }
 
 #[tauri::command]
@@ -49,6 +49,14 @@ fn create_credential(
     .map_err(|error| error.to_string())?;
 
     Ok(())
+}
+
+#[tauri::command]
+fn get_credentials(
+    app: tauri::AppHandle,
+) -> Result<Vec<Credential>, String> {
+    storage::get_credentials(&app)
+        .map_err(|error| error.to_string())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -75,7 +83,10 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![create_credential])
+        .invoke_handler(tauri::generate_handler![
+            create_credential,
+            get_credentials
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
