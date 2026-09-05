@@ -158,11 +158,15 @@ h1 {
 .credential-card {
   display: flex;
   align-items: center;
+  width: 100%;
   gap: 14px;
   padding: 16px 18px;
-  background: #ffffff;
   border: 1px solid #e1e3e6;
   border-radius: 12px;
+  background: #ffffff;
+  color: inherit;
+  font: inherit;
+  text-align: left;
   transition:
     border-color 0.15s ease,
     box-shadow 0.15s ease;

@@ -1,11 +1,9 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import Sidebar from "./components/Sidebar";
-import type { Credential } from "./types/credential";
-import CredentialCard from "./components/CredentialCard";
-import EmptyState from "./components/EmptyState";
 import CredentialsView from "./views/CredentialsView";
 import AddCredentialView from "./views/AddCredentialView";
+import type { Credential } from "./types/credential";
 import "./App.css";
 
 type View = "credentials" | "add";
@@ -13,6 +11,8 @@ type View = "credentials" | "add";
 function App() {
   const [view, setView] = useState<View>("credentials");
   const [credentials, setCredentials] = useState<Credential[]>([]);
+  const [selectedCredential, setSelectedCredential] =
+    useState<Credential | null>(null);
 
   async function loadCredentials() {
     try {
@@ -39,6 +39,9 @@ function App() {
           <CredentialsView
             credentials={credentials}
             onAddCredential={() => setView("add")}
+            onCredentialClick={(credential) => {
+              setSelectedCredential(credential);
+            }}
           />
         )}
 

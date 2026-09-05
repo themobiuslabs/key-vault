@@ -2,11 +2,18 @@ import type { Credential } from "../types/credential";
 
 type CredentialCardProps = {
   credential: Credential;
+  onClick: () => void;
 };
 
-function CredentialCard({ credential }: CredentialCardProps) {
+function CredentialCard({
+  credential,
+  onClick,
+}: CredentialCardProps) {
   return (
-    <div className="credential-card">
+    <button
+      className="credential-card"
+      onClick={onClick}
+    >
       <div className="credential-icon">
         {credential.provider.charAt(0).toUpperCase()}
       </div>
@@ -23,7 +30,7 @@ function CredentialCard({ credential }: CredentialCardProps) {
           ))}
         </div>
       </div>
-    </div>
+    </button>
   );
 }
 

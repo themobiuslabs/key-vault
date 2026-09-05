@@ -5,11 +5,13 @@ import EmptyState from "../components/EmptyState";
 type CredentialsViewProps = {
   credentials: Credential[];
   onAddCredential: () => void;
+  onCredentialClick: (credential: Credential) => void;
 };
 
 function CredentialsView({
   credentials,
   onAddCredential,
+  onCredentialClick,
 }: CredentialsViewProps) {
   return (
     <>
@@ -50,6 +52,7 @@ function CredentialsView({
               <CredentialCard
                 key={credential.id}
                 credential={credential}
+                onClick={() => onCredentialClick(credential)}
               />
             ))}
           </div>
