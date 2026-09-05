@@ -349,6 +349,39 @@ textarea {
   background: #f5f6f8;
 }
 
+.details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px 20px;
+}
+
+.detail {
+  min-width: 0;
+}
+
+.detail-label {
+  display: block;
+  margin-bottom: 8px;
+  color: #777c84;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.detail p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.secret-value {
+  padding: 12px;
+  overflow-wrap: anywhere;
+  background: #f5f6f8;
+  border: 1px solid #e1e3e6;
+  border-radius: 8px;
+  font-family: monospace;
+  font-size: 13px;
+}
+
 @media (max-width: 800px) {
   .sidebar {
     width: 190px;
@@ -358,11 +391,37 @@ textarea {
     padding: 32px;
   }
 
-  .form-grid {
+  .form-grid,
+  .details-grid {
     grid-template-columns: 1fr;
   }
 
   .full-width {
     grid-column: auto;
   }
+}
+
+.secret-row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.secret-row .secret-value {
+  flex: 1;
+}
+
+.secret-row .secondary-button {
+  flex-shrink: 0;
+}
+
+.secret-value {
+  margin: 0;
+  padding: 12px;
+  overflow-wrap: anywhere;
+  background: #f5f6f8;
+  border: 1px solid #e1e3e6;
+  border-radius: 8px;
+  font-family: monospace;
+  font-size: 13px;
 }

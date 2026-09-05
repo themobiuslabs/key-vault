@@ -1,6 +1,6 @@
 type SidebarProps = {
-  view: "credentials" | "add";
-  onViewChange: (view: "credentials" | "add") => void;
+  view: "credentials" | "add" | "details";
+  onViewChange: (view: "credentials" | "add" | "details") => void;
 };
 
 function Sidebar({ view, onViewChange }: SidebarProps) {
@@ -14,18 +14,13 @@ function Sidebar({ view, onViewChange }: SidebarProps) {
       <nav>
         <button
           className={`nav-item ${
-            view === "credentials" ? "active" : ""
+            view === "credentials" || view === "details"
+              ? "active"
+              : ""
           }`}
           onClick={() => onViewChange("credentials")}
         >
           Credentials
-        </button>
-
-        <button
-          className={`nav-item ${view === "add" ? "active" : ""}`}
-          onClick={() => onViewChange("add")}
-        >
-          + Add New
         </button>
 
         <button className="nav-item">

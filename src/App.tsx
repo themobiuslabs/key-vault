@@ -3,10 +3,11 @@ import { invoke } from "@tauri-apps/api/core";
 import Sidebar from "./components/Sidebar";
 import CredentialsView from "./views/CredentialsView";
 import AddCredentialView from "./views/AddCredentialView";
+import CredentialDetailsView from "./views/CredentialDetailsView";
 import type { Credential } from "./types/credential";
 import "./App.css";
 
-type View = "credentials" | "add";
+type View = "credentials" | "add" | "details";
 
 function App() {
   const [view, setView] = useState<View>("credentials");
@@ -27,6 +28,11 @@ function App() {
     loadCredentials();
   }, []);
 
+  function openCredential(credential: Credential) {
+    setSelectedCredential(credential);
+    setView("details");
+  }
+
   return (
     <div className="app">
       <Sidebar
@@ -39,9 +45,7 @@ function App() {
           <CredentialsView
             credentials={credentials}
             onAddCredential={() => setView("add")}
-            onCredentialClick={(credential) => {
-              setSelectedCredential(credential);
-            }}
+            onCredentialClick={openCredential}
           />
         )}
 
@@ -52,6 +56,13 @@ function App() {
               await loadCredentials();
               setView("credentials");
             }}
+          />
+        )}
+
+        {view === "details" && selectedCredential && (
+          <CredentialDetailsView
+            credential={selectedCredential}
+            onBack={() => setView("credentials")}
           />
         )}
       </main>
