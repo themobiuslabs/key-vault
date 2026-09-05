@@ -52,6 +52,30 @@ fn create_credential(
 }
 
 #[tauri::command]
+fn update_credential(
+    app: tauri::AppHandle,
+    id: String,
+    credential: CreateCredential,
+) -> Result<(), String> {
+    storage::update_credential(&app, &id, &credential)
+        .map_err(|error| error.to_string())?;
+
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?;
+
+    logger::log(
+        &app_data_dir,
+        "INFO",
+        &format!("Credential updated: {}", credential.title),
+    )
+    .map_err(|error| error.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
 fn get_credentials(
     app: tauri::AppHandle,
 ) -> Result<Vec<Credential>, String> {
@@ -85,6 +109,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             create_credential,
+            update_credential,
             get_credentials
         ])
         .run(tauri::generate_context!())

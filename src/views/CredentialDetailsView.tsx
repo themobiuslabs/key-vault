@@ -4,11 +4,13 @@ import type { Credential } from "../types/credential";
 type CredentialDetailsViewProps = {
   credential: Credential;
   onBack: () => void;
+  onEdit: () => void;
 };
 
 function CredentialDetailsView({
   credential,
   onBack,
+  onEdit,
 }: CredentialDetailsViewProps) {
   const [showApiKey, setShowApiKey] = useState(false);
   const [showSecretKey, setShowSecretKey] = useState(false);
@@ -30,6 +32,13 @@ function CredentialDetailsView({
             {credential.provider}
           </p>
         </div>
+
+        <button
+          className="primary-button"
+          onClick={onEdit}
+        >
+          Edit Credential
+        </button>
       </header>
 
       <section className="card">
@@ -40,7 +49,9 @@ function CredentialDetailsView({
           </div>
 
           <div className="detail">
-            <span className="detail-label">Credential Type</span>
+            <span className="detail-label">
+              Credential Type
+            </span>
             <p>{credential.credential_type}</p>
           </div>
 
@@ -56,7 +67,9 @@ function CredentialDetailsView({
 
               <button
                 className="secondary-button"
-                onClick={() => setShowApiKey(!showApiKey)}
+                onClick={() =>
+                  setShowApiKey(!showApiKey)
+                }
               >
                 {showApiKey ? "Hide" : "Show"}
               </button>
@@ -65,7 +78,9 @@ function CredentialDetailsView({
 
           {credential.secret_key && (
             <div className="detail full-width">
-              <span className="detail-label">Secret Key</span>
+              <span className="detail-label">
+                Secret Key
+              </span>
 
               <div className="secret-row">
                 <p className="secret-value">

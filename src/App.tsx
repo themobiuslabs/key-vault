@@ -4,10 +4,11 @@ import Sidebar from "./components/Sidebar";
 import CredentialsView from "./views/CredentialsView";
 import AddCredentialView from "./views/AddCredentialView";
 import CredentialDetailsView from "./views/CredentialDetailsView";
+import EditCredentialView from "./views/EditCredentialView";
 import type { Credential } from "./types/credential";
 import "./App.css";
 
-type View = "credentials" | "add" | "details";
+type View = "credentials" | "add" | "details" | "edit";
 
 function App() {
   const [view, setView] = useState<View>("credentials");
@@ -15,14 +16,16 @@ function App() {
   const [selectedCredential, setSelectedCredential] =
     useState<Credential | null>(null);
 
-  async function loadCredentials() {
-    try {
-      const result = await invoke<Credential[]>("get_credentials");
-      setCredentials(result);
-    } catch (error) {
-      console.error("Failed to load credentials:", error);
-    }
+  async function loadCredentials(): Promise<Credential[]> {
+  try {
+    const result = await invoke<Credential[]>("get_credentials");
+    setCredentials(result);
+    return result;
+  } catch (error) {
+    console.error("Failed to load credentials:", error);
+    return [];
   }
+}
 
   useEffect(() => {
     loadCredentials();
@@ -32,6 +35,23 @@ function App() {
     setSelectedCredential(credential);
     setView("details");
   }
+
+  async function handleCredentialUpdated() {
+  const updatedCredentials = await loadCredentials();
+
+  if (selectedCredential) {
+    const updatedCredential = updatedCredentials.find(
+      (credential) =>
+        credential.id === selectedCredential.id
+    );
+
+    if (updatedCredential) {
+      setSelectedCredential(updatedCredential);
+    }
+  }
+
+  setView("details");
+}
 
   return (
     <div className="app">
@@ -63,6 +83,15 @@ function App() {
           <CredentialDetailsView
             credential={selectedCredential}
             onBack={() => setView("credentials")}
+            onEdit={() => setView("edit")}
+          />
+        )}
+
+        {view === "edit" && selectedCredential && (
+          <EditCredentialView
+            credential={selectedCredential}
+            onBack={() => setView("details")}
+            onCredentialUpdated={handleCredentialUpdated}
           />
         )}
       </main>

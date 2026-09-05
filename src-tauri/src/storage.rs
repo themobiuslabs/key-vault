@@ -124,3 +124,44 @@ pub fn get_credentials(
 
     Ok(credentials)
 }
+
+pub fn update_credential(
+    app: &tauri::AppHandle,
+    id: &str,
+    credential: &CreateCredential,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let app_data_dir = app.path().app_data_dir()?;
+    let database_path = app_data_dir.join("vault.db");
+
+    let connection = Connection::open(database_path)?;
+
+    let now = chrono::Utc::now().to_rfc3339();
+    let tags = serde_json::to_string(&credential.tags)?;
+
+    connection.execute(
+        "UPDATE credentials
+         SET
+            title = ?1,
+            provider = ?2,
+            credential_type = ?3,
+            api_key = ?4,
+            secret_key = ?5,
+            notes = ?6,
+            tags = ?7,
+            updated_at = ?8
+         WHERE id = ?9",
+        params![
+            credential.title,
+            credential.provider,
+            credential.credential_type,
+            credential.api_key,
+            credential.secret_key,
+            credential.notes,
+            tags,
+            now,
+            id,
+        ],
+    )?;
+
+    Ok(())
+}
