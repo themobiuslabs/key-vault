@@ -154,6 +154,13 @@ h1 {
   font-size: 14px;
 }
 
+.search-controls {
+  display: grid;
+  grid-template-columns: 1fr 180px;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
 .credential-list {
   display: flex;
   flex-direction: column;
@@ -467,6 +474,10 @@ textarea {
 
   .form-grid,
   .details-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .search-controls {
     grid-template-columns: 1fr;
   }
 
