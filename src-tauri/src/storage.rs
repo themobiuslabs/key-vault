@@ -165,3 +165,20 @@ pub fn update_credential(
 
     Ok(())
 }
+
+pub fn delete_credential(
+    app: &tauri::AppHandle,
+    id: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let app_data_dir = app.path().app_data_dir()?;
+    let database_path = app_data_dir.join("vault.db");
+
+    let connection = Connection::open(database_path)?;
+
+    connection.execute(
+        "DELETE FROM credentials WHERE id = ?1",
+        params![id],
+    )?;
+
+    Ok(())
+}

@@ -21,6 +21,11 @@ button {
   cursor: pointer;
 }
 
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 .app {
   display: flex;
   min-height: 100vh;
@@ -323,7 +328,8 @@ textarea {
 }
 
 .primary-button,
-.secondary-button {
+.secondary-button,
+.danger-button {
   padding: 10px 16px;
   border-radius: 8px;
   font-weight: 600;
@@ -372,35 +378,6 @@ textarea {
   line-height: 1.5;
 }
 
-.secret-value {
-  padding: 12px;
-  overflow-wrap: anywhere;
-  background: #f5f6f8;
-  border: 1px solid #e1e3e6;
-  border-radius: 8px;
-  font-family: monospace;
-  font-size: 13px;
-}
-
-@media (max-width: 800px) {
-  .sidebar {
-    width: 190px;
-  }
-
-  .main {
-    padding: 32px;
-  }
-
-  .form-grid,
-  .details-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .full-width {
-    grid-column: auto;
-  }
-}
-
 .secret-row {
   display: flex;
   align-items: stretch;
@@ -424,4 +401,85 @@ textarea {
   border-radius: 8px;
   font-family: monospace;
   font-size: 13px;
+}
+
+.danger-zone {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid #eceef0;
+}
+
+.danger-zone h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.danger-zone p {
+  margin: 6px 0 0;
+  color: #777c84;
+  font-size: 13px;
+}
+
+.danger-button {
+  flex-shrink: 0;
+  border: 1px solid #d9dce1;
+  background: white;
+  color: #b42318;
+}
+
+.danger-button:hover {
+  background: #fff5f4;
+  border-color: #e3b7b2;
+}
+
+.delete-confirmation {
+  min-width: 320px;
+  padding: 16px;
+  border: 1px solid #e1e3e6;
+  border-radius: 10px;
+  background: #f9fafb;
+}
+
+.delete-confirmation p {
+  margin: 0 0 14px;
+  color: #4b4f55;
+  font-size: 13px;
+}
+
+.confirmation-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@media (max-width: 800px) {
+  .sidebar {
+    width: 190px;
+  }
+
+  .main {
+    padding: 32px;
+  }
+
+  .form-grid,
+  .details-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .full-width {
+    grid-column: auto;
+  }
+
+  .danger-zone {
+    flex-direction: column;
+  }
+
+  .delete-confirmation {
+    width: 100%;
+    min-width: 0;
+  }
 }

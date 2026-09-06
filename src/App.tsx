@@ -17,15 +17,15 @@ function App() {
     useState<Credential | null>(null);
 
   async function loadCredentials(): Promise<Credential[]> {
-  try {
-    const result = await invoke<Credential[]>("get_credentials");
-    setCredentials(result);
-    return result;
-  } catch (error) {
-    console.error("Failed to load credentials:", error);
-    return [];
+    try {
+      const result = await invoke<Credential[]>("get_credentials");
+      setCredentials(result);
+      return result;
+    } catch (error) {
+      console.error("Failed to load credentials:", error);
+      return [];
+    }
   }
-}
 
   useEffect(() => {
     loadCredentials();
@@ -37,21 +37,27 @@ function App() {
   }
 
   async function handleCredentialUpdated() {
-  const updatedCredentials = await loadCredentials();
+    const updatedCredentials = await loadCredentials();
 
-  if (selectedCredential) {
-    const updatedCredential = updatedCredentials.find(
-      (credential) =>
-        credential.id === selectedCredential.id
-    );
+    if (selectedCredential) {
+      const updatedCredential = updatedCredentials.find(
+        (credential) =>
+          credential.id === selectedCredential.id
+      );
 
-    if (updatedCredential) {
-      setSelectedCredential(updatedCredential);
+      if (updatedCredential) {
+        setSelectedCredential(updatedCredential);
+      }
     }
+
+    setView("details");
   }
 
-  setView("details");
-}
+  async function handleCredentialDeleted() {
+    setSelectedCredential(null);
+    await loadCredentials();
+    setView("credentials");
+  }
 
   return (
     <div className="app">
@@ -84,6 +90,7 @@ function App() {
             credential={selectedCredential}
             onBack={() => setView("credentials")}
             onEdit={() => setView("edit")}
+            onCredentialDeleted={handleCredentialDeleted}
           />
         )}
 
