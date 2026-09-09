@@ -1,7 +1,9 @@
 use tauri::Manager;
 
+mod crypto;
 mod logger;
 mod storage;
+mod vault;
 
 #[derive(serde::Serialize)]
 pub struct Credential {
@@ -17,7 +19,7 @@ pub struct Credential {
     pub updated_at: String,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct CreateCredential {
     pub title: String,
     pub provider: String,
@@ -26,6 +28,50 @@ pub struct CreateCredential {
     pub secret_key: Option<String>,
     pub notes: Option<String>,
     pub tags: Vec<String>,
+}
+
+#[tauri::command]
+fn initialize_vault(
+    app: tauri::AppHandle,
+    password: String,
+) -> Result<(), String> {
+    storage::initialize_vault(&app, &password)
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn unlock_vault(
+    app: tauri::AppHandle,
+    password: String,
+    state: tauri::State<'_, vault::VaultState>,
+) -> Result<(), String> {
+    let (salt, wrapped_vek) =
+        storage::get_vault_metadata(&app)?;
+
+    let salt: [u8; 16] = salt
+        .try_into()
+        .map_err(|_| "Invalid vault salt".to_string())?;
+
+    let kek = crypto::derive_kek(
+        &password,
+        &salt,
+    )?;
+
+    let vek = crypto::unwrap_vault_key(
+        &kek,
+        &wrapped_vek,
+    )?;
+
+    state.unlock(vek)?;
+
+    Ok(())
+}
+
+#[tauri::command]
+fn is_vault_initialized(
+    app: tauri::AppHandle,
+) -> Result<bool, String> {
+    storage::is_vault_initialized(&app)
 }
 
 #[tauri::command]
@@ -49,6 +95,20 @@ fn create_credential(
     .map_err(|error| error.to_string())?;
 
     Ok(())
+}
+
+#[tauri::command]
+fn lock_vault(
+    state: tauri::State<'_, vault::VaultState>,
+) -> Result<(), String> {
+    state.lock()
+}
+
+#[tauri::command]
+fn is_vault_unlocked(
+    state: tauri::State<'_, vault::VaultState>,
+) -> Result<bool, String> {
+    state.is_unlocked()
 }
 
 #[tauri::command]
@@ -109,6 +169,7 @@ fn get_credentials(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .manage(vault::VaultState::new())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let app_data_dir = app
@@ -131,6 +192,11 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            initialize_vault,
+            is_vault_initialized,
+            unlock_vault,
+            lock_vault,
+            is_vault_unlocked,
             create_credential,
             update_credential,
             delete_credential,

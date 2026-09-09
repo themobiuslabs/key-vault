@@ -30,7 +30,117 @@ pub fn initialize_database(
         [],
     )?;
 
+    connection.execute(
+        "CREATE TABLE IF NOT EXISTS vault_metadata (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            salt BLOB NOT NULL,
+            wrapped_vek BLOB NOT NULL
+        )",
+        [],
+    )?;
+
     Ok(())
+}
+
+pub fn initialize_vault(
+    app: &tauri::AppHandle,
+    password: &str,
+) -> Result<(), String> {
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?;
+
+    let database_path = app_data_dir.join("vault.db");
+
+    let connection = Connection::open(database_path)
+        .map_err(|error| error.to_string())?;
+
+    let existing_vault: i64 = connection
+        .query_row(
+            "SELECT COUNT(*) FROM vault_metadata WHERE id = 1",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|error| error.to_string())?;
+
+    if existing_vault > 0 {
+        return Err("Vault has already been initialized".to_string());
+    }
+
+    let vek = crate::crypto::generate_vault_key();
+    let salt = crate::crypto::generate_salt();
+
+    let kek = crate::crypto::derive_kek(password, &salt)?;
+
+    let wrapped_vek =
+        crate::crypto::wrap_vault_key(&kek, &vek)?;
+
+    connection
+        .execute(
+            "INSERT INTO vault_metadata (
+                id,
+                salt,
+                wrapped_vek
+            ) VALUES (1, ?1, ?2)",
+            params![salt.as_slice(), wrapped_vek],
+        )
+        .map_err(|error| error.to_string())?;
+
+    Ok(())
+}
+
+pub fn get_vault_metadata(
+    app: &tauri::AppHandle,
+) -> Result<(Vec<u8>, Vec<u8>), String> {
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?;
+
+    let database_path = app_data_dir.join("vault.db");
+
+    let connection = Connection::open(database_path)
+        .map_err(|error| error.to_string())?;
+
+    connection
+        .query_row(
+            "SELECT salt, wrapped_vek
+             FROM vault_metadata
+             WHERE id = 1",
+            [],
+            |row| {
+                let salt: Vec<u8> = row.get(0)?;
+                let wrapped_vek: Vec<u8> = row.get(1)?;
+
+                Ok((salt, wrapped_vek))
+            },
+        )
+        .map_err(|error| error.to_string())
+}
+
+pub fn is_vault_initialized(
+    app: &tauri::AppHandle,
+) -> Result<bool, String> {
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?;
+
+    let database_path = app_data_dir.join("vault.db");
+
+    let connection = Connection::open(database_path)
+        .map_err(|error| error.to_string())?;
+
+    let count: i64 = connection
+        .query_row(
+            "SELECT COUNT(*) FROM vault_metadata WHERE id = 1",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|error| error.to_string())?;
+
+    Ok(count > 0)
 }
 
 pub fn insert_credential(

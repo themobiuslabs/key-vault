@@ -31,6 +31,58 @@ button:disabled {
   min-height: 100vh;
 }
 
+.setup-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 32px;
+}
+
+.setup-card {
+  width: 100%;
+  max-width: 430px;
+  padding: 36px;
+  background: #ffffff;
+  border: 1px solid #e1e3e6;
+  border-radius: 16px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
+}
+
+.setup-card .logo {
+  margin-bottom: 40px;
+  padding: 0;
+}
+
+.setup-card h1 {
+  margin: 0;
+  font-size: 30px;
+  letter-spacing: -0.03em;
+}
+
+.setup-card .subtitle {
+  margin-bottom: 28px;
+}
+
+.setup-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.setup-form .primary-button {
+  margin-top: 4px;
+}
+
+.setup-error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fff5f4;
+  color: #b42318;
+  font-size: 13px;
+}
+
 .sidebar {
   width: 230px;
   padding: 28px 16px;
@@ -492,5 +544,9 @@ textarea {
   .delete-confirmation {
     width: 100%;
     min-width: 0;
+  }
+
+  .setup-card {
+    padding: 28px;
   }
 }
