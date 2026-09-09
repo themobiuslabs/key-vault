@@ -43,7 +43,7 @@ pub struct CredentialMetadata {
 fn initialize_vault(
     app: tauri::AppHandle,
     password: String,
-) -> Result<(), String> {
+) -> Result<String, String> {
     storage::initialize_vault(&app, &password)
         .map_err(|error| error.to_string())
 }
@@ -61,8 +61,12 @@ fn unlock_vault(
     password: String,
     state: tauri::State<'_, vault::VaultState>,
 ) -> Result<(), String> {
-    let (salt, wrapped_vek) =
-        storage::get_vault_metadata(&app)?;
+    let (
+        salt,
+        wrapped_vek,
+        _recovery_salt,
+        _recovery_wrapped_vek,
+    ) = storage::get_vault_metadata(&app)?;
 
     let salt: [u8; 16] = salt
         .try_into()
@@ -81,6 +85,94 @@ fn unlock_vault(
     state.unlock(vek)?;
 
     Ok(())
+}
+
+#[tauri::command]
+fn recover_vault(
+    app: tauri::AppHandle,
+    recovery_key: String,
+    state: tauri::State<'_, vault::VaultState>,
+) -> Result<(), String> {
+    let (
+        _salt,
+        _wrapped_vek,
+        recovery_salt,
+        recovery_wrapped_vek,
+    ) = storage::get_vault_metadata(&app)?;
+
+    let recovery_key_bytes =
+        hex_to_bytes(&recovery_key)?;
+
+    if recovery_key_bytes.len() != 32 {
+        return Err(
+            "Invalid recovery key".to_string()
+        );
+    }
+
+    let recovery_key: [u8; 32] =
+        recovery_key_bytes
+            .try_into()
+            .map_err(|_| {
+                "Invalid recovery key".to_string()
+            })?;
+
+    let recovery_salt: [u8; 16] =
+        recovery_salt
+            .try_into()
+            .map_err(|_| {
+                "Invalid recovery salt".to_string()
+            })?;
+
+    let recovery_kek =
+        crypto::derive_recovery_kek(
+            &recovery_key,
+            &recovery_salt,
+        )?;
+
+    let vek =
+        crypto::unwrap_vault_key(
+            &recovery_kek,
+            &recovery_wrapped_vek,
+        )?;
+
+    state.unlock(vek)?;
+
+    Ok(())
+}
+
+fn hex_to_bytes(value: &str) -> Result<Vec<u8>, String> {
+    if value.len() % 2 != 0 {
+        return Err(
+            "Invalid recovery key".to_string()
+        );
+    }
+
+    let mut bytes = Vec::with_capacity(
+        value.len() / 2
+    );
+
+    let characters: Vec<char> =
+        value.chars().collect();
+
+    for index in (0..characters.len()).step_by(2) {
+        let high = characters[index]
+            .to_digit(16)
+            .ok_or_else(|| {
+                "Invalid recovery key".to_string()
+            })?;
+
+        let low = characters[index + 1]
+            .to_digit(16)
+            .ok_or_else(|| {
+                "Invalid recovery key".to_string()
+            })?;
+
+        bytes.push(
+            ((high << 4) | low) as u8
+        );
+    }
+
+    Ok(bytes)
 }
 
 #[tauri::command]
@@ -328,6 +420,7 @@ pub fn run() {
                 initialize_vault,
                 is_vault_initialized,
                 unlock_vault,
+                recover_vault,
                 lock_vault,
                 is_vault_unlocked,
                 create_credential,

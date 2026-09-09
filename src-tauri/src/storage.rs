@@ -31,7 +31,9 @@ pub fn initialize_database(
         "CREATE TABLE IF NOT EXISTS vault_metadata (
             id INTEGER PRIMARY KEY CHECK (id = 1),
             salt BLOB NOT NULL,
-            wrapped_vek BLOB NOT NULL
+            wrapped_vek BLOB NOT NULL,
+            recovery_salt BLOB NOT NULL,
+            recovery_wrapped_vek BLOB NOT NULL
         )",
         [],
     )?;
@@ -66,7 +68,7 @@ pub fn is_vault_initialized(
 pub fn initialize_vault(
     app: &tauri::AppHandle,
     password: &str,
-) -> Result<(), String> {
+) -> Result<String, String> {
     let app_data_dir = app
         .path()
         .app_data_dir()
@@ -92,6 +94,7 @@ pub fn initialize_vault(
     }
 
     let vek = crate::crypto::generate_vault_key();
+
     let salt = crate::crypto::generate_salt();
 
     let kek = crate::crypto::derive_kek(
@@ -100,28 +103,67 @@ pub fn initialize_vault(
     )?;
 
     let wrapped_vek =
-        crate::crypto::wrap_vault_key(&kek, &vek)?;
+        crate::crypto::wrap_vault_key(
+            &kek,
+            &vek,
+        )?;
+
+    let recovery_key =
+        crate::crypto::generate_recovery_key();
+
+    let recovery_salt =
+        crate::crypto::generate_salt();
+
+    let recovery_kek =
+        crate::crypto::derive_recovery_kek(
+            &recovery_key,
+            &recovery_salt,
+        )?;
+
+    let recovery_wrapped_vek =
+        crate::crypto::wrap_vault_key(
+            &recovery_kek,
+            &vek,
+        )?;
 
     connection
         .execute(
             "INSERT INTO vault_metadata (
                 id,
                 salt,
-                wrapped_vek
-            ) VALUES (1, ?1, ?2)",
+                wrapped_vek,
+                recovery_salt,
+                recovery_wrapped_vek
+            ) VALUES (1, ?1, ?2, ?3, ?4)",
             params![
                 salt.as_slice(),
                 wrapped_vek,
+                recovery_salt.as_slice(),
+                recovery_wrapped_vek,
             ],
         )
         .map_err(|error| error.to_string())?;
 
-    Ok(())
+    let recovery_key_hex =
+        recovery_key
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>();
+
+    Ok(recovery_key_hex)
 }
 
 pub fn get_vault_metadata(
     app: &tauri::AppHandle,
-) -> Result<(Vec<u8>, Vec<u8>), String> {
+) -> Result<
+    (
+        Vec<u8>,
+        Vec<u8>,
+        Vec<u8>,
+        Vec<u8>,
+    ),
+    String,
+> {
     let app_data_dir = app
         .path()
         .app_data_dir()
@@ -136,15 +178,25 @@ pub fn get_vault_metadata(
         .query_row(
             "SELECT
                 salt,
-                wrapped_vek
+                wrapped_vek,
+                recovery_salt,
+                recovery_wrapped_vek
              FROM vault_metadata
              WHERE id = 1",
             [],
             |row| {
                 let salt: Vec<u8> = row.get(0)?;
                 let wrapped_vek: Vec<u8> = row.get(1)?;
+                let recovery_salt: Vec<u8> = row.get(2)?;
+                let recovery_wrapped_vek: Vec<u8> =
+                    row.get(3)?;
 
-                Ok((salt, wrapped_vek))
+                Ok((
+                    salt,
+                    wrapped_vek,
+                    recovery_salt,
+                    recovery_wrapped_vek,
+                ))
             },
         )
         .map_err(|error| error.to_string())
