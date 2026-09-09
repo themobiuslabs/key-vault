@@ -12,9 +12,11 @@
   "app": {
     "windows": [
       {
-        "title": "keyvault",
-        "width": 800,
-        "height": 600
+        "title": "KeyVault",
+        "width": 1200,
+        "height": 800,
+        "resizable": true,
+        "maximized": true
       }
     ],
     "security": {

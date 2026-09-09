@@ -1,4 +1,5 @@
 use std::sync::Mutex;
+use zeroize::Zeroize;
 
 pub struct VaultState {
     vek: Mutex<Option<[u8; 32]>>,
@@ -11,11 +12,20 @@ impl VaultState {
         }
     }
 
-    pub fn unlock(&self, vek: [u8; 32]) -> Result<(), String> {
+    pub fn unlock(
+        &self,
+        vek: [u8; 32],
+    ) -> Result<(), String> {
         let mut stored_vek = self
             .vek
             .lock()
-            .map_err(|_| "Failed to access vault state".to_string())?;
+            .map_err(|_| {
+                "Failed to access vault state".to_string()
+            })?;
+
+        if let Some(mut old_vek) = stored_vek.take() {
+            old_vek.zeroize();
+        }
 
         *stored_vek = Some(vek);
 
@@ -26,9 +36,13 @@ impl VaultState {
         let mut stored_vek = self
             .vek
             .lock()
-            .map_err(|_| "Failed to access vault state".to_string())?;
+            .map_err(|_| {
+                "Failed to access vault state".to_string()
+            })?;
 
-        *stored_vek = None;
+        if let Some(mut vek) = stored_vek.take() {
+            vek.zeroize();
+        }
 
         Ok(())
     }
@@ -37,7 +51,9 @@ impl VaultState {
         let stored_vek = self
             .vek
             .lock()
-            .map_err(|_| "Failed to access vault state".to_string())?;
+            .map_err(|_| {
+                "Failed to access vault state".to_string()
+            })?;
 
         Ok(stored_vek.is_some())
     }
@@ -46,7 +62,9 @@ impl VaultState {
         let stored_vek = self
             .vek
             .lock()
-            .map_err(|_| "Failed to access vault state".to_string())?;
+            .map_err(|_| {
+                "Failed to access vault state".to_string()
+            })?;
 
         stored_vek
             .as_ref()

@@ -30,6 +30,15 @@ pub struct CreateCredential {
     pub tags: Vec<String>,
 }
 
+pub struct CredentialMetadata {
+    pub id: String,
+    pub title: String,
+    pub provider: String,
+    pub credential_type: String,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
 #[tauri::command]
 fn initialize_vault(
     app: tauri::AppHandle,
@@ -37,6 +46,13 @@ fn initialize_vault(
 ) -> Result<(), String> {
     storage::initialize_vault(&app, &password)
         .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn is_vault_initialized(
+    app: tauri::AppHandle,
+) -> Result<bool, String> {
+    storage::is_vault_initialized(&app)
 }
 
 #[tauri::command]
@@ -68,36 +84,6 @@ fn unlock_vault(
 }
 
 #[tauri::command]
-fn is_vault_initialized(
-    app: tauri::AppHandle,
-) -> Result<bool, String> {
-    storage::is_vault_initialized(&app)
-}
-
-#[tauri::command]
-fn create_credential(
-    app: tauri::AppHandle,
-    credential: CreateCredential,
-) -> Result<(), String> {
-    storage::insert_credential(&app, &credential)
-        .map_err(|error| error.to_string())?;
-
-    let app_data_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| error.to_string())?;
-
-    logger::log(
-        &app_data_dir,
-        "INFO",
-        &format!("Credential saved: {}", credential.title),
-    )
-    .map_err(|error| error.to_string())?;
-
-    Ok(())
-}
-
-#[tauri::command]
 fn lock_vault(
     state: tauri::State<'_, vault::VaultState>,
 ) -> Result<(), String> {
@@ -112,13 +98,39 @@ fn is_vault_unlocked(
 }
 
 #[tauri::command]
-fn update_credential(
+fn create_credential(
     app: tauri::AppHandle,
-    id: String,
     credential: CreateCredential,
+    state: tauri::State<'_, vault::VaultState>,
 ) -> Result<(), String> {
-    storage::update_credential(&app, &id, &credential)
-        .map_err(|error| error.to_string())?;
+    let vek = state.get_vek()?;
+
+    let id = uuid::Uuid::new_v4().to_string();
+
+    let encrypted_data =
+        crypto::encrypt_credential(
+            &vek,
+            &id,
+            &credential,
+        )?;
+
+    let now = chrono::Utc::now().to_rfc3339();
+
+    let metadata = CredentialMetadata {
+        id,
+        title: credential.title.clone(),
+        provider: credential.provider.clone(),
+        credential_type: credential.credential_type.clone(),
+        created_at: now.clone(),
+        updated_at: now,
+    };
+
+    storage::insert_credential(
+        &app,
+        &metadata,
+        &encrypted_data,
+    )
+    .map_err(|error| error.to_string())?;
 
     let app_data_dir = app
         .path()
@@ -128,7 +140,109 @@ fn update_credential(
     logger::log(
         &app_data_dir,
         "INFO",
-        &format!("Credential updated: {}", credential.title),
+        &format!(
+            "Credential saved: {}",
+            metadata.title
+        ),
+    )
+    .map_err(|error| error.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+fn get_credentials(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, vault::VaultState>,
+) -> Result<Vec<Credential>, String> {
+    let vek = state.get_vek()?;
+
+    let stored_credentials =
+        storage::get_credentials(&app)
+            .map_err(|error| error.to_string())?;
+
+    let mut credentials = Vec::new();
+
+    for (
+        id,
+        title,
+        provider,
+        credential_type,
+        created_at,
+        updated_at,
+        encrypted_data,
+    ) in stored_credentials
+    {
+        let decrypted =
+            crypto::decrypt_credential(
+                &vek,
+                &id,
+                &encrypted_data,
+            )?;
+
+        credentials.push(Credential {
+            id,
+            title,
+            provider,
+            credential_type,
+            api_key: decrypted.api_key,
+            secret_key: decrypted.secret_key,
+            notes: decrypted.notes,
+            tags: decrypted.tags,
+            created_at,
+            updated_at,
+        });
+    }
+
+    Ok(credentials)
+}
+
+#[tauri::command]
+fn update_credential(
+    app: tauri::AppHandle,
+    id: String,
+    credential: CreateCredential,
+    state: tauri::State<'_, vault::VaultState>,
+) -> Result<(), String> {
+    let vek = state.get_vek()?;
+
+    let encrypted_data =
+        crypto::encrypt_credential(
+            &vek,
+            &id,
+            &credential,
+        )?;
+
+    let now = chrono::Utc::now().to_rfc3339();
+
+    let metadata = CredentialMetadata {
+        id,
+        title: credential.title.clone(),
+        provider: credential.provider.clone(),
+        credential_type: credential.credential_type.clone(),
+        created_at: String::new(),
+        updated_at: now,
+    };
+
+    storage::update_credential(
+        &app,
+        &metadata,
+        &encrypted_data,
+    )
+    .map_err(|error| error.to_string())?;
+
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?;
+
+    logger::log(
+        &app_data_dir,
+        "INFO",
+        &format!(
+            "Credential updated: {}",
+            metadata.title
+        ),
     )
     .map_err(|error| error.to_string())?;
 
@@ -139,7 +253,10 @@ fn update_credential(
 fn delete_credential(
     app: tauri::AppHandle,
     id: String,
+    state: tauri::State<'_, vault::VaultState>,
 ) -> Result<(), String> {
+    state.get_vek()?;
+
     storage::delete_credential(&app, &id)
         .map_err(|error| error.to_string())?;
 
@@ -151,19 +268,14 @@ fn delete_credential(
     logger::log(
         &app_data_dir,
         "INFO",
-        &format!("Credential deleted: {}", id),
+        &format!(
+            "Credential deleted: {}",
+            id
+        ),
     )
     .map_err(|error| error.to_string())?;
 
     Ok(())
-}
-
-#[tauri::command]
-fn get_credentials(
-    app: tauri::AppHandle,
-) -> Result<Vec<Credential>, String> {
-    storage::get_credentials(&app)
-        .map_err(|error| error.to_string())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -175,33 +287,59 @@ pub fn run() {
             let app_data_dir = app
                 .path()
                 .app_data_dir()
-                .expect("failed to get app data directory");
+                .expect(
+                    "failed to get app data directory"
+                );
 
             std::fs::create_dir_all(&app_data_dir)
-                .expect("failed to create app data directory");
+                .expect(
+                    "failed to create app data directory"
+                );
 
-            logger::log(&app_data_dir, "INFO", "KeyVault started")
-                .expect("failed to write startup log");
+            logger::log(
+                &app_data_dir,
+                "INFO",
+                "KeyVault started",
+            )
+            .expect(
+                "failed to write startup log"
+            );
 
-            storage::initialize_database(app.handle())
-                .expect("failed to initialize database");
+            storage::initialize_database(
+                app.handle()
+            )
+            .expect(
+                "failed to initialize database"
+            );
 
-            logger::log(&app_data_dir, "INFO", "Database initialized")
-                .expect("failed to write database log");
+            logger::log(
+                &app_data_dir,
+                "INFO",
+                "Database initialized",
+            )
+            .expect(
+                "failed to write database log"
+            );
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![
-            initialize_vault,
-            is_vault_initialized,
-            unlock_vault,
-            lock_vault,
-            is_vault_unlocked,
-            create_credential,
-            update_credential,
-            delete_credential,
-            get_credentials
-        ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .invoke_handler(
+            tauri::generate_handler![
+                initialize_vault,
+                is_vault_initialized,
+                unlock_vault,
+                lock_vault,
+                is_vault_unlocked,
+                create_credential,
+                update_credential,
+                delete_credential,
+                get_credentials
+            ]
+        )
+        .run(
+            tauri::generate_context!()
+        )
+        .expect(
+            "error while running tauri application"
+        );
 }

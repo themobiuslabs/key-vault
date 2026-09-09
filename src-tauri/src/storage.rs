@@ -1,7 +1,7 @@
 use rusqlite::{params, Connection};
 use tauri::Manager;
 
-use crate::{Credential, CreateCredential};
+use crate::CredentialMetadata;
 
 pub fn initialize_database(
     app: &tauri::AppHandle,
@@ -20,10 +20,7 @@ pub fn initialize_database(
             title TEXT NOT NULL,
             provider TEXT NOT NULL,
             credential_type TEXT NOT NULL,
-            api_key TEXT NOT NULL,
-            secret_key TEXT,
-            notes TEXT,
-            tags TEXT NOT NULL,
+            encrypted_data BLOB NOT NULL,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
         )",
@@ -40,83 +37,6 @@ pub fn initialize_database(
     )?;
 
     Ok(())
-}
-
-pub fn initialize_vault(
-    app: &tauri::AppHandle,
-    password: &str,
-) -> Result<(), String> {
-    let app_data_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| error.to_string())?;
-
-    let database_path = app_data_dir.join("vault.db");
-
-    let connection = Connection::open(database_path)
-        .map_err(|error| error.to_string())?;
-
-    let existing_vault: i64 = connection
-        .query_row(
-            "SELECT COUNT(*) FROM vault_metadata WHERE id = 1",
-            [],
-            |row| row.get(0),
-        )
-        .map_err(|error| error.to_string())?;
-
-    if existing_vault > 0 {
-        return Err("Vault has already been initialized".to_string());
-    }
-
-    let vek = crate::crypto::generate_vault_key();
-    let salt = crate::crypto::generate_salt();
-
-    let kek = crate::crypto::derive_kek(password, &salt)?;
-
-    let wrapped_vek =
-        crate::crypto::wrap_vault_key(&kek, &vek)?;
-
-    connection
-        .execute(
-            "INSERT INTO vault_metadata (
-                id,
-                salt,
-                wrapped_vek
-            ) VALUES (1, ?1, ?2)",
-            params![salt.as_slice(), wrapped_vek],
-        )
-        .map_err(|error| error.to_string())?;
-
-    Ok(())
-}
-
-pub fn get_vault_metadata(
-    app: &tauri::AppHandle,
-) -> Result<(Vec<u8>, Vec<u8>), String> {
-    let app_data_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| error.to_string())?;
-
-    let database_path = app_data_dir.join("vault.db");
-
-    let connection = Connection::open(database_path)
-        .map_err(|error| error.to_string())?;
-
-    connection
-        .query_row(
-            "SELECT salt, wrapped_vek
-             FROM vault_metadata
-             WHERE id = 1",
-            [],
-            |row| {
-                let salt: Vec<u8> = row.get(0)?;
-                let wrapped_vek: Vec<u8> = row.get(1)?;
-
-                Ok((salt, wrapped_vek))
-            },
-        )
-        .map_err(|error| error.to_string())
 }
 
 pub fn is_vault_initialized(
@@ -143,18 +63,102 @@ pub fn is_vault_initialized(
     Ok(count > 0)
 }
 
+pub fn initialize_vault(
+    app: &tauri::AppHandle,
+    password: &str,
+) -> Result<(), String> {
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?;
+
+    let database_path = app_data_dir.join("vault.db");
+
+    let connection = Connection::open(database_path)
+        .map_err(|error| error.to_string())?;
+
+    let existing_vault: i64 = connection
+        .query_row(
+            "SELECT COUNT(*) FROM vault_metadata WHERE id = 1",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|error| error.to_string())?;
+
+    if existing_vault > 0 {
+        return Err(
+            "Vault has already been initialized".to_string()
+        );
+    }
+
+    let vek = crate::crypto::generate_vault_key();
+    let salt = crate::crypto::generate_salt();
+
+    let kek = crate::crypto::derive_kek(
+        password,
+        &salt,
+    )?;
+
+    let wrapped_vek =
+        crate::crypto::wrap_vault_key(&kek, &vek)?;
+
+    connection
+        .execute(
+            "INSERT INTO vault_metadata (
+                id,
+                salt,
+                wrapped_vek
+            ) VALUES (1, ?1, ?2)",
+            params![
+                salt.as_slice(),
+                wrapped_vek,
+            ],
+        )
+        .map_err(|error| error.to_string())?;
+
+    Ok(())
+}
+
+pub fn get_vault_metadata(
+    app: &tauri::AppHandle,
+) -> Result<(Vec<u8>, Vec<u8>), String> {
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?;
+
+    let database_path = app_data_dir.join("vault.db");
+
+    let connection = Connection::open(database_path)
+        .map_err(|error| error.to_string())?;
+
+    connection
+        .query_row(
+            "SELECT
+                salt,
+                wrapped_vek
+             FROM vault_metadata
+             WHERE id = 1",
+            [],
+            |row| {
+                let salt: Vec<u8> = row.get(0)?;
+                let wrapped_vek: Vec<u8> = row.get(1)?;
+
+                Ok((salt, wrapped_vek))
+            },
+        )
+        .map_err(|error| error.to_string())
+}
+
 pub fn insert_credential(
     app: &tauri::AppHandle,
-    credential: &CreateCredential,
+    credential: &CredentialMetadata,
+    encrypted_data: &[u8],
 ) -> Result<(), Box<dyn std::error::Error>> {
     let app_data_dir = app.path().app_data_dir()?;
     let database_path = app_data_dir.join("vault.db");
 
     let connection = Connection::open(database_path)?;
-
-    let id = uuid::Uuid::new_v4().to_string();
-    let now = chrono::Utc::now().to_rfc3339();
-    let tags = serde_json::to_string(&credential.tags)?;
 
     connection.execute(
         "INSERT INTO credentials (
@@ -162,24 +166,18 @@ pub fn insert_credential(
             title,
             provider,
             credential_type,
-            api_key,
-            secret_key,
-            notes,
-            tags,
+            encrypted_data,
             created_at,
             updated_at
-        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
         params![
-            id,
+            credential.id,
             credential.title,
             credential.provider,
             credential.credential_type,
-            credential.api_key,
-            credential.secret_key,
-            credential.notes,
-            tags,
-            now,
-            now,
+            encrypted_data,
+            credential.created_at,
+            credential.updated_at,
         ],
     )?;
 
@@ -188,7 +186,18 @@ pub fn insert_credential(
 
 pub fn get_credentials(
     app: &tauri::AppHandle,
-) -> Result<Vec<Credential>, Box<dyn std::error::Error>> {
+) -> Result<
+    Vec<(
+        String,
+        String,
+        String,
+        String,
+        String,
+        String,
+        Vec<u8>,
+    )>,
+    Box<dyn std::error::Error>,
+> {
     let app_data_dir = app.path().app_data_dir()?;
     let database_path = app_data_dir.join("vault.db");
 
@@ -200,53 +209,50 @@ pub fn get_credentials(
             title,
             provider,
             credential_type,
-            api_key,
-            secret_key,
-            notes,
-            tags,
             created_at,
-            updated_at
+            updated_at,
+            encrypted_data
          FROM credentials
          ORDER BY created_at DESC",
     )?;
 
     let credentials = statement
         .query_map([], |row| {
-            let tags_json: String = row.get(7)?;
-
-            let tags: Vec<String> =
-                serde_json::from_str(&tags_json).unwrap_or_default();
-
-            Ok(Credential {
-                id: row.get(0)?,
-                title: row.get(1)?,
-                provider: row.get(2)?,
-                credential_type: row.get(3)?,
-                api_key: row.get(4)?,
-                secret_key: row.get(5)?,
-                notes: row.get(6)?,
-                tags,
-                created_at: row.get(8)?,
-                updated_at: row.get(9)?,
-            })
+            Ok((
+                row.get(0)?,
+                row.get(1)?,
+                row.get(2)?,
+                row.get(3)?,
+                row.get(4)?,
+                row.get(5)?,
+                row.get(6)?,
+            ))
         })?
-        .collect::<Result<Vec<Credential>, rusqlite::Error>>()?;
+        .collect::<Result<
+            Vec<(
+                String,
+                String,
+                String,
+                String,
+                String,
+                String,
+                Vec<u8>,
+            )>,
+            rusqlite::Error,
+        >>()?;
 
     Ok(credentials)
 }
 
 pub fn update_credential(
     app: &tauri::AppHandle,
-    id: &str,
-    credential: &CreateCredential,
+    credential: &CredentialMetadata,
+    encrypted_data: &[u8],
 ) -> Result<(), Box<dyn std::error::Error>> {
     let app_data_dir = app.path().app_data_dir()?;
     let database_path = app_data_dir.join("vault.db");
 
     let connection = Connection::open(database_path)?;
-
-    let now = chrono::Utc::now().to_rfc3339();
-    let tags = serde_json::to_string(&credential.tags)?;
 
     connection.execute(
         "UPDATE credentials
@@ -254,22 +260,16 @@ pub fn update_credential(
             title = ?1,
             provider = ?2,
             credential_type = ?3,
-            api_key = ?4,
-            secret_key = ?5,
-            notes = ?6,
-            tags = ?7,
-            updated_at = ?8
-         WHERE id = ?9",
+            encrypted_data = ?4,
+            updated_at = ?5
+         WHERE id = ?6",
         params![
             credential.title,
             credential.provider,
             credential.credential_type,
-            credential.api_key,
-            credential.secret_key,
-            credential.notes,
-            tags,
-            now,
-            id,
+            encrypted_data,
+            credential.updated_at,
+            credential.id,
         ],
     )?;
 

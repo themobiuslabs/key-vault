@@ -2,7 +2,12 @@ use aes_gcm::{
     aead::{Aead, KeyInit},
     Aes256Gcm, Key, Nonce,
 };
-use argon2::{Algorithm, Argon2, Params, Version};
+use argon2::{
+    Algorithm,
+    Argon2,
+    Params,
+    Version,
+};
 use rand::RngCore;
 
 use crate::CreateCredential;
@@ -70,7 +75,9 @@ pub fn wrap_vault_key(
     let ciphertext = cipher
         .encrypt(nonce, vek.as_ref())
         .map_err(|error| {
-            format!("Failed to wrap vault key: {error:?}")
+            format!(
+                "Failed to wrap vault key: {error:?}"
+            )
         })?;
 
     let mut wrapped_key = Vec::with_capacity(
@@ -88,7 +95,9 @@ pub fn unwrap_vault_key(
     wrapped_key: &[u8],
 ) -> Result<[u8; 32], String> {
     if wrapped_key.len() < 12 {
-        return Err("Invalid wrapped vault key".to_string());
+        return Err(
+            "Invalid wrapped vault key".to_string()
+        );
     }
 
     let nonce_bytes = &wrapped_key[..12];
@@ -102,11 +111,15 @@ pub fn unwrap_vault_key(
     let plaintext = cipher
         .decrypt(nonce, ciphertext)
         .map_err(|error| {
-            format!("Failed to unwrap vault key: {error:?}")
+            format!(
+                "Failed to unwrap vault key: {error:?}"
+            )
         })?;
 
     if plaintext.len() != 32 {
-        return Err("Invalid vault key length".to_string());
+        return Err(
+            "Invalid vault key length".to_string()
+        );
     }
 
     let mut vek = [0u8; 32];
@@ -118,6 +131,7 @@ pub fn unwrap_vault_key(
 
 pub fn encrypt_credential(
     vek: &[u8; 32],
+    credential_id: &str,
     credential: &CreateCredential,
 ) -> Result<Vec<u8>, String> {
     let key = Key::<Aes256Gcm>::from_slice(vek);
@@ -133,9 +147,17 @@ pub fn encrypt_credential(
     let nonce = Nonce::from_slice(&nonce_bytes);
 
     let ciphertext = cipher
-        .encrypt(nonce, plaintext.as_ref())
+        .encrypt(
+            nonce,
+            aes_gcm::aead::Payload {
+                msg: plaintext.as_ref(),
+                aad: credential_id.as_bytes(),
+            },
+        )
         .map_err(|error| {
-            format!("Failed to encrypt credential: {error:?}")
+            format!(
+                "Failed to encrypt credential: {error:?}"
+            )
         })?;
 
     let mut encrypted_data = Vec::with_capacity(
@@ -150,6 +172,7 @@ pub fn encrypt_credential(
 
 pub fn decrypt_credential(
     vek: &[u8; 32],
+    credential_id: &str,
     encrypted_data: &[u8],
 ) -> Result<CreateCredential, String> {
     if encrypted_data.len() < 12 {
@@ -167,9 +190,17 @@ pub fn decrypt_credential(
     let nonce = Nonce::from_slice(nonce_bytes);
 
     let plaintext = cipher
-        .decrypt(nonce, ciphertext)
+        .decrypt(
+            nonce,
+            aes_gcm::aead::Payload {
+                msg: ciphertext,
+                aad: credential_id.as_bytes(),
+            },
+        )
         .map_err(|error| {
-            format!("Failed to decrypt credential: {error:?}")
+            format!(
+                "Failed to decrypt credential: {error:?}"
+            )
         })?;
 
     serde_json::from_slice(&plaintext)
