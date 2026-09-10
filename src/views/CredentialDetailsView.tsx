@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { Credential } from "../types/credential";
 
@@ -9,17 +9,77 @@ type CredentialDetailsViewProps = {
   onCredentialDeleted: () => void;
 };
 
+function formatDate(
+  timestamp: string
+): string {
+  return new Date(
+    timestamp
+  ).toLocaleString(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
+
 function CredentialDetailsView({
   credential,
   onBack,
   onEdit,
   onCredentialDeleted,
 }: CredentialDetailsViewProps) {
-  const [showApiKey, setShowApiKey] = useState(false);
-  const [showSecretKey, setShowSecretKey] = useState(false);
-  const [showDeleteConfirmation, setShowDeleteConfirmation] =
+  const [showApiKey, setShowApiKey] =
     useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+
+  const [showSecretKey, setShowSecretKey] =
+    useState(false);
+
+  const [copiedField, setCopiedField] =
+    useState<
+      "api_key" | "secret_key" | null
+    >(null);
+
+  const [
+    showDeleteConfirmation,
+    setShowDeleteConfirmation,
+  ] = useState(false);
+
+  const [isDeleting, setIsDeleting] =
+    useState(false);
+
+  useEffect(() => {
+    setCopiedField(null);
+    setShowApiKey(false);
+    setShowSecretKey(false);
+  }, [credential.id]);
+
+  async function copyToClipboard(
+    value: string,
+    field:
+      | "api_key"
+      | "secret_key"
+  ) {
+    try {
+      await navigator.clipboard.writeText(
+        value
+      );
+
+      if (field === "api_key") {
+        setShowApiKey(false);
+      } else {
+        setShowSecretKey(false);
+      }
+
+      setCopiedField(field);
+
+      setTimeout(() => {
+        setCopiedField(null);
+      }, 1500);
+    } catch (error) {
+      console.error(
+        "Failed to copy credential:",
+        error
+      );
+    }
+  }
 
   async function deleteCredential() {
     setIsDeleting(true);
@@ -31,7 +91,11 @@ function CredentialDetailsView({
 
       onCredentialDeleted();
     } catch (error) {
-      console.error("Failed to delete credential:", error);
+      console.error(
+        "Failed to delete credential:",
+        error
+      );
+
       setIsDeleting(false);
     }
   }
@@ -47,8 +111,12 @@ function CredentialDetailsView({
             ← Back to credentials
           </button>
 
-          <p className="eyebrow">CREDENTIAL</p>
+          <p className="eyebrow">
+            CREDENTIAL
+          </p>
+
           <h1>{credential.title}</h1>
+
           <p className="subtitle">
             {credential.provider}
           </p>
@@ -65,7 +133,10 @@ function CredentialDetailsView({
       <section className="card">
         <div className="details-grid">
           <div className="detail">
-            <span className="detail-label">Provider</span>
+            <span className="detail-label">
+              Provider
+            </span>
+
             <p>{credential.provider}</p>
           </div>
 
@@ -73,26 +144,50 @@ function CredentialDetailsView({
             <span className="detail-label">
               Credential Type
             </span>
-            <p>{credential.credential_type}</p>
+
+            <p>
+              {credential.credential_type}
+            </p>
           </div>
 
           <div className="detail full-width">
-            <span className="detail-label">API Key</span>
+            <span className="detail-label">
+              API Key
+            </span>
 
             <div className="secret-row">
-              <p className="secret-value">
+              <div className="secret-value">
                 {showApiKey
                   ? credential.api_key
                   : "••••••••••••••••"}
-              </p>
+              </div>
 
               <button
                 className="secondary-button"
                 onClick={() =>
-                  setShowApiKey(!showApiKey)
+                  setShowApiKey(
+                    !showApiKey
+                  )
                 }
               >
-                {showApiKey ? "Hide" : "Show"}
+                {showApiKey
+                  ? "Hide"
+                  : "Show"}
+              </button>
+
+              <button
+                className="secondary-button"
+                onClick={() =>
+                  copyToClipboard(
+                    credential.api_key,
+                    "api_key"
+                  )
+                }
+              >
+                {copiedField ===
+                "api_key"
+                  ? "Copied"
+                  : "Copy"}
               </button>
             </div>
           </div>
@@ -104,19 +199,38 @@ function CredentialDetailsView({
               </span>
 
               <div className="secret-row">
-                <p className="secret-value">
+                <div className="secret-value">
                   {showSecretKey
                     ? credential.secret_key
                     : "••••••••••••••••"}
-                </p>
+                </div>
 
                 <button
                   className="secondary-button"
                   onClick={() =>
-                    setShowSecretKey(!showSecretKey)
+                    setShowSecretKey(
+                      !showSecretKey
+                    )
                   }
                 >
-                  {showSecretKey ? "Hide" : "Show"}
+                  {showSecretKey
+                    ? "Hide"
+                    : "Show"}
+                </button>
+
+                <button
+                  className="secondary-button"
+                  onClick={() =>
+                    copyToClipboard(
+                      credential.secret_key!,
+                      "secret_key"
+                    )
+                  }
+                >
+                  {copiedField ===
+                  "secret_key"
+                    ? "Copied"
+                    : "Copy"}
                 </button>
               </div>
             </div>
@@ -124,39 +238,68 @@ function CredentialDetailsView({
 
           {credential.tags.length > 0 && (
             <div className="detail full-width">
-              <span className="detail-label">Tags</span>
+              <span className="detail-label">
+                Tags
+              </span>
 
               <div className="credential-meta">
-                {credential.tags.map((tag) => (
-                  <span key={tag}>{tag}</span>
-                ))}
+                {credential.tags.map(
+                  (tag) => (
+                    <span key={tag}>
+                      {tag}
+                    </span>
+                  )
+                )}
               </div>
             </div>
           )}
 
           {credential.notes && (
             <div className="detail full-width">
-              <span className="detail-label">Notes</span>
-              <p>{credential.notes}</p>
+              <span className="detail-label">
+                Notes
+              </span>
+
+              <p>
+                {credential.notes}
+              </p>
             </div>
           )}
 
           <div className="detail">
-            <span className="detail-label">Created</span>
-            <p>{credential.created_at}</p>
+            <span className="detail-label">
+              Created
+            </span>
+
+            <p>
+              {formatDate(
+                credential.created_at
+              )}
+            </p>
           </div>
 
           <div className="detail">
-            <span className="detail-label">Updated</span>
-            <p>{credential.updated_at}</p>
+            <span className="detail-label">
+              Updated
+            </span>
+
+            <p>
+              {formatDate(
+                credential.updated_at
+              )}
+            </p>
           </div>
         </div>
 
         <div className="danger-zone">
           <div>
-            <h2>Delete credential</h2>
+            <h2>
+              Delete credential
+            </h2>
+
             <p>
-              Permanently remove this credential from your vault.
+              Permanently remove this
+              credential from your vault.
             </p>
           </div>
 
@@ -164,7 +307,9 @@ function CredentialDetailsView({
             <button
               className="danger-button"
               onClick={() =>
-                setShowDeleteConfirmation(true)
+                setShowDeleteConfirmation(
+                  true
+                )
               }
             >
               Delete Credential
@@ -172,14 +317,17 @@ function CredentialDetailsView({
           ) : (
             <div className="delete-confirmation">
               <p>
-                Are you sure you want to delete this credential?
+                Are you sure you want to
+                delete this credential?
               </p>
 
               <div className="confirmation-actions">
                 <button
                   className="secondary-button"
                   onClick={() =>
-                    setShowDeleteConfirmation(false)
+                    setShowDeleteConfirmation(
+                      false
+                    )
                   }
                   disabled={isDeleting}
                 >
@@ -188,7 +336,9 @@ function CredentialDetailsView({
 
                 <button
                   className="danger-button"
-                  onClick={deleteCredential}
+                  onClick={
+                    deleteCredential
+                  }
                   disabled={isDeleting}
                 >
                   {isDeleting
