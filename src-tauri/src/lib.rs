@@ -270,7 +270,12 @@ fn get_credentials(
                 &vek,
                 &id,
                 &encrypted_data,
-            )?;
+            )
+            .map_err(|error| {
+                format!(
+                    "Failed to decrypt credential {id}: {error}"
+                )
+            })?;
 
         credentials.push(Credential {
             id,

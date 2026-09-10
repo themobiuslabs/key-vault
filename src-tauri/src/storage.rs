@@ -3,39 +3,110 @@ use tauri::Manager;
 
 use crate::CredentialMetadata;
 
-pub fn initialize_database(
-    app: &tauri::AppHandle,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let app_data_dir = app.path().app_data_dir()?;
+const CURRENT_SCHEMA_VERSION: i32 = 1;
 
-    std::fs::create_dir_all(&app_data_dir)?;
+fn get_schema_version(
+    connection: &Connection,
+) -> Result<i32, rusqlite::Error> {
+    connection.query_row(
+        "PRAGMA user_version",
+        [],
+        |row| row.get(0),
+    )
+}
 
-    let database_path = app_data_dir.join("vault.db");
-
-    let connection = Connection::open(database_path)?;
-
+fn set_schema_version(
+    connection: &Connection,
+    version: i32,
+) -> Result<(), rusqlite::Error> {
     connection.execute(
-        "CREATE TABLE IF NOT EXISTS credentials (
-            id TEXT PRIMARY KEY,
-            title TEXT NOT NULL,
-            provider TEXT NOT NULL,
-            credential_type TEXT NOT NULL,
-            encrypted_data BLOB NOT NULL,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-        )",
+        &format!(
+            "PRAGMA user_version = {version}"
+        ),
         [],
     )?;
 
-    connection.execute(
-        "CREATE TABLE IF NOT EXISTS vault_metadata (
-            id INTEGER PRIMARY KEY CHECK (id = 1),
-            salt BLOB NOT NULL,
-            wrapped_vek BLOB NOT NULL,
-            recovery_salt BLOB NOT NULL,
-            recovery_wrapped_vek BLOB NOT NULL
-        )",
-        [],
+    Ok(())
+}
+
+fn migrate_database(
+    connection: &mut Connection,
+    current_version: i32,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if current_version > CURRENT_SCHEMA_VERSION {
+        return Err(
+            format!(
+                "Database schema version {current_version} is newer than supported version {CURRENT_SCHEMA_VERSION}"
+            )
+            .into(),
+        );
+    }
+
+    if current_version == CURRENT_SCHEMA_VERSION {
+        return Ok(());
+    }
+
+    let transaction =
+        connection.transaction()?;
+
+    if current_version < 1 {
+        transaction.execute(
+            "CREATE TABLE IF NOT EXISTS credentials (
+                id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                credential_type TEXT NOT NULL,
+                encrypted_data BLOB NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )",
+            [],
+        )?;
+
+        transaction.execute(
+            "CREATE TABLE IF NOT EXISTS vault_metadata (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                salt BLOB NOT NULL,
+                wrapped_vek BLOB NOT NULL,
+                recovery_salt BLOB NOT NULL,
+                recovery_wrapped_vek BLOB NOT NULL
+            )",
+            [],
+        )?;
+
+        set_schema_version(
+            &transaction,
+            1,
+        )?;
+    }
+
+    transaction.commit()?;
+
+    Ok(())
+}
+
+pub fn initialize_database(
+    app: &tauri::AppHandle,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let app_data_dir =
+        app.path().app_data_dir()?;
+
+    std::fs::create_dir_all(
+        &app_data_dir
+    )?;
+
+    let database_path =
+        app_data_dir.join("vault.db");
+
+    let mut connection =
+        Connection::open(database_path)?;
+
+    let schema_version =
+        get_schema_version(&connection)?;
+
+    migrate_database(
+        &mut connection,
+        schema_version,
     )?;
 
     Ok(())
@@ -49,14 +120,18 @@ pub fn is_vault_initialized(
         .app_data_dir()
         .map_err(|error| error.to_string())?;
 
-    let database_path = app_data_dir.join("vault.db");
+    let database_path =
+        app_data_dir.join("vault.db");
 
-    let connection = Connection::open(database_path)
-        .map_err(|error| error.to_string())?;
+    let connection =
+        Connection::open(database_path)
+            .map_err(|error| error.to_string())?;
 
     let count: i64 = connection
         .query_row(
-            "SELECT COUNT(*) FROM vault_metadata WHERE id = 1",
+            "SELECT COUNT(*)
+             FROM vault_metadata
+             WHERE id = 1",
             [],
             |row| row.get(0),
         )
@@ -74,14 +149,18 @@ pub fn initialize_vault(
         .app_data_dir()
         .map_err(|error| error.to_string())?;
 
-    let database_path = app_data_dir.join("vault.db");
+    let database_path =
+        app_data_dir.join("vault.db");
 
-    let connection = Connection::open(database_path)
-        .map_err(|error| error.to_string())?;
+    let connection =
+        Connection::open(database_path)
+            .map_err(|error| error.to_string())?;
 
     let existing_vault: i64 = connection
         .query_row(
-            "SELECT COUNT(*) FROM vault_metadata WHERE id = 1",
+            "SELECT COUNT(*)
+             FROM vault_metadata
+             WHERE id = 1",
             [],
             |row| row.get(0),
         )
@@ -89,18 +168,22 @@ pub fn initialize_vault(
 
     if existing_vault > 0 {
         return Err(
-            "Vault has already been initialized".to_string()
+            "Vault has already been initialized"
+                .to_string(),
         );
     }
 
-    let vek = crate::crypto::generate_vault_key();
+    let vek =
+        crate::crypto::generate_vault_key();
 
-    let salt = crate::crypto::generate_salt();
+    let salt =
+        crate::crypto::generate_salt();
 
-    let kek = crate::crypto::derive_kek(
-        password,
-        &salt,
-    )?;
+    let kek =
+        crate::crypto::derive_kek(
+            password,
+            &salt,
+        )?;
 
     let wrapped_vek =
         crate::crypto::wrap_vault_key(
@@ -147,7 +230,9 @@ pub fn initialize_vault(
     let recovery_key_hex =
         recovery_key
             .iter()
-            .map(|byte| format!("{byte:02x}"))
+            .map(|byte| {
+                format!("{byte:02x}")
+            })
             .collect::<String>();
 
     Ok(recovery_key_hex)
@@ -169,10 +254,12 @@ pub fn get_vault_metadata(
         .app_data_dir()
         .map_err(|error| error.to_string())?;
 
-    let database_path = app_data_dir.join("vault.db");
+    let database_path =
+        app_data_dir.join("vault.db");
 
-    let connection = Connection::open(database_path)
-        .map_err(|error| error.to_string())?;
+    let connection =
+        Connection::open(database_path)
+            .map_err(|error| error.to_string())?;
 
     connection
         .query_row(
@@ -185,11 +272,17 @@ pub fn get_vault_metadata(
              WHERE id = 1",
             [],
             |row| {
-                let salt: Vec<u8> = row.get(0)?;
-                let wrapped_vek: Vec<u8> = row.get(1)?;
-                let recovery_salt: Vec<u8> = row.get(2)?;
-                let recovery_wrapped_vek: Vec<u8> =
-                    row.get(3)?;
+                let salt: Vec<u8> =
+                    row.get(0)?;
+
+                let wrapped_vek: Vec<u8> =
+                    row.get(1)?;
+
+                let recovery_salt: Vec<u8> =
+                    row.get(2)?;
+
+                let recovery_wrapped_vek:
+                    Vec<u8> = row.get(3)?;
 
                 Ok((
                     salt,
@@ -207,10 +300,14 @@ pub fn insert_credential(
     credential: &CredentialMetadata,
     encrypted_data: &[u8],
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let app_data_dir = app.path().app_data_dir()?;
-    let database_path = app_data_dir.join("vault.db");
+    let app_data_dir =
+        app.path().app_data_dir()?;
 
-    let connection = Connection::open(database_path)?;
+    let database_path =
+        app_data_dir.join("vault.db");
+
+    let connection =
+        Connection::open(database_path)?;
 
     connection.execute(
         "INSERT INTO credentials (
@@ -250,23 +347,28 @@ pub fn get_credentials(
     )>,
     Box<dyn std::error::Error>,
 > {
-    let app_data_dir = app.path().app_data_dir()?;
-    let database_path = app_data_dir.join("vault.db");
+    let app_data_dir =
+        app.path().app_data_dir()?;
 
-    let connection = Connection::open(database_path)?;
+    let database_path =
+        app_data_dir.join("vault.db");
 
-    let mut statement = connection.prepare(
-        "SELECT
-            id,
-            title,
-            provider,
-            credential_type,
-            created_at,
-            updated_at,
-            encrypted_data
-         FROM credentials
-         ORDER BY created_at DESC",
-    )?;
+    let connection =
+        Connection::open(database_path)?;
+
+    let mut statement =
+        connection.prepare(
+            "SELECT
+                id,
+                title,
+                provider,
+                credential_type,
+                created_at,
+                updated_at,
+                encrypted_data
+             FROM credentials
+             ORDER BY created_at DESC",
+        )?;
 
     let credentials = statement
         .query_map([], |row| {
@@ -301,10 +403,14 @@ pub fn update_credential(
     credential: &CredentialMetadata,
     encrypted_data: &[u8],
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let app_data_dir = app.path().app_data_dir()?;
-    let database_path = app_data_dir.join("vault.db");
+    let app_data_dir =
+        app.path().app_data_dir()?;
 
-    let connection = Connection::open(database_path)?;
+    let database_path =
+        app_data_dir.join("vault.db");
+
+    let connection =
+        Connection::open(database_path)?;
 
     connection.execute(
         "UPDATE credentials
@@ -332,13 +438,18 @@ pub fn delete_credential(
     app: &tauri::AppHandle,
     id: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let app_data_dir = app.path().app_data_dir()?;
-    let database_path = app_data_dir.join("vault.db");
+    let app_data_dir =
+        app.path().app_data_dir()?;
 
-    let connection = Connection::open(database_path)?;
+    let database_path =
+        app_data_dir.join("vault.db");
+
+    let connection =
+        Connection::open(database_path)?;
 
     connection.execute(
-        "DELETE FROM credentials WHERE id = ?1",
+        "DELETE FROM credentials
+         WHERE id = ?1",
         params![id],
     )?;
 

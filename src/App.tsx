@@ -29,6 +29,9 @@ function App() {
   const [credentials, setCredentials] =
     useState<Credential[]>([]);
 
+  const [appError, setAppError] =
+    useState("");
+
   const [selectedCredential, setSelectedCredential] =
     useState<Credential | null>(null);
 
@@ -52,11 +55,17 @@ function App() {
         "Failed to check vault status:",
         error
       );
+
+      setAppError(
+        "KeyVault could not check the vault status."
+      );
     }
   }
 
   async function loadCredentials(): Promise<Credential[]> {
     try {
+      setAppError("");
+
       const result = await invoke<Credential[]>(
         "get_credentials"
       );
@@ -70,7 +79,11 @@ function App() {
         error
       );
 
-      return [];
+      setAppError(
+        "KeyVault could not read your credentials. Your vault may be corrupted or unavailable."
+      );
+
+      throw error;
     }
   }
 
@@ -80,7 +93,7 @@ function App() {
 
   useEffect(() => {
     if (vaultUnlocked) {
-      loadCredentials();
+      loadCredentials().catch(() => {});
     }
   }, [vaultUnlocked]);
 
@@ -127,6 +140,7 @@ function App() {
 
       setCredentials([]);
       setSelectedCredential(null);
+      setAppError("");
       setVaultUnlocked(false);
       setView("credentials");
     } catch (error) {
@@ -169,6 +183,12 @@ function App() {
       />
 
       <main className="main">
+        {appError && (
+          <div className="setup-error">
+            {appError}
+          </div>
+        )}
+
         <div
           style={{
             display: "flex",
