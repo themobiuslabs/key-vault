@@ -7,6 +7,7 @@ import CredentialDetailsView from "./views/CredentialDetailsView";
 import EditCredentialView from "./views/EditCredentialView";
 import SetupVaultView from "./views/SetupVaultView";
 import UnlockVaultView from "./views/UnlockVaultView";
+import SettingsView from "./views/SettingsView";
 import type { Credential } from "./types/credential";
 import "./App.css";
 
@@ -14,7 +15,8 @@ type View =
   | "credentials"
   | "add"
   | "details"
-  | "edit";
+  | "edit"
+  | "settings";
 
 function App() {
   const [vaultInitialized, setVaultInitialized] =
@@ -34,6 +36,9 @@ function App() {
 
   const [selectedCredential, setSelectedCredential] =
     useState<Credential | null>(null);
+
+  const [autoLockSeconds, setAutoLockSeconds] =
+    useState(600);
 
   async function checkVaultStatus() {
     try {
@@ -87,6 +92,22 @@ function App() {
     }
   }
 
+  async function loadAutoLockSetting() {
+    try {
+      const seconds =
+        await invoke<number>(
+          "get_auto_lock_seconds"
+        );
+
+      setAutoLockSeconds(seconds);
+    } catch (error) {
+      console.error(
+        "Failed to load auto-lock setting:",
+        error
+      );
+    }
+  }
+
   useEffect(() => {
     checkVaultStatus();
   }, []);
@@ -94,8 +115,81 @@ function App() {
   useEffect(() => {
     if (vaultUnlocked) {
       loadCredentials().catch(() => {});
+      loadAutoLockSetting();
     }
   }, [vaultUnlocked]);
+
+  useEffect(() => {
+    if (!vaultUnlocked) {
+      return;
+    }
+
+    if (autoLockSeconds === 0) {
+      return;
+    }
+
+    let timer: ReturnType<typeof setTimeout>;
+
+    function resetAutoLockTimer() {
+      clearTimeout(timer);
+
+      timer = setTimeout(() => {
+        handleLock();
+      }, autoLockSeconds * 1000);
+    }
+
+    const activityEvents = [
+      "mousemove",
+      "mousedown",
+      "keydown",
+      "scroll",
+      "touchstart",
+    ];
+
+    activityEvents.forEach(
+      (eventName) => {
+        window.addEventListener(
+          eventName,
+          resetAutoLockTimer
+        );
+      }
+    );
+
+    resetAutoLockTimer();
+
+    return () => {
+      clearTimeout(timer);
+
+      activityEvents.forEach(
+        (eventName) => {
+          window.removeEventListener(
+            eventName,
+            resetAutoLockTimer
+          );
+        }
+      );
+    };
+  }, [
+    vaultUnlocked,
+    autoLockSeconds,
+  ]);
+
+  async function handleLock() {
+    try {
+      await invoke("lock_vault");
+
+      setCredentials([]);
+      setSelectedCredential(null);
+      setAppError("");
+      setVaultUnlocked(false);
+      setView("credentials");
+    } catch (error) {
+      console.error(
+        "Failed to lock vault:",
+        error
+      );
+    }
+  }
 
   function openCredential(
     credential: Credential
@@ -132,23 +226,6 @@ function App() {
     await loadCredentials();
 
     setView("credentials");
-  }
-
-  async function handleLock() {
-    try {
-      await invoke("lock_vault");
-
-      setCredentials([]);
-      setSelectedCredential(null);
-      setAppError("");
-      setVaultUnlocked(false);
-      setView("credentials");
-    } catch (error) {
-      console.error(
-        "Failed to lock vault:",
-        error
-      );
-    }
   }
 
   if (vaultInitialized === null) {
@@ -260,6 +337,17 @@ function App() {
               }
             />
           )}
+
+        {view === "settings" && (
+          <SettingsView
+            onBack={() =>
+              setView("credentials")
+            }
+            onAutoLockChanged={
+              setAutoLockSeconds
+            }
+          />
+        )}
       </main>
     </div>
   );

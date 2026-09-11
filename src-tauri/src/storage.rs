@@ -3,7 +3,7 @@ use tauri::Manager;
 
 use crate::CredentialMetadata;
 
-const CURRENT_SCHEMA_VERSION: i32 = 1;
+const CURRENT_SCHEMA_VERSION: i32 = 2;
 
 fn get_schema_version(
     connection: &Connection,
@@ -42,10 +42,6 @@ fn migrate_database(
         );
     }
 
-    if current_version == CURRENT_SCHEMA_VERSION {
-        return Ok(());
-    }
-
     let transaction =
         connection.transaction()?;
 
@@ -77,6 +73,32 @@ fn migrate_database(
         set_schema_version(
             &transaction,
             1,
+        )?;
+    }
+
+    if current_version < 2 {
+        transaction.execute(
+            "CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            )",
+            [],
+        )?;
+
+        transaction.execute(
+            "INSERT OR IGNORE INTO settings (
+                key,
+                value
+            ) VALUES (
+                'auto_lock_seconds',
+                '600'
+            )",
+            [],
+        )?;
+
+        set_schema_version(
+            &transaction,
+            2,
         )?;
     }
 
@@ -293,6 +315,145 @@ pub fn get_vault_metadata(
             },
         )
         .map_err(|error| error.to_string())
+}
+
+pub fn update_vault_password(
+    app: &tauri::AppHandle,
+    salt: &[u8; 16],
+    wrapped_vek: &[u8],
+) -> Result<(), Box<dyn std::error::Error>> {
+    let app_data_dir =
+        app.path().app_data_dir()?;
+
+    let database_path =
+        app_data_dir.join("vault.db");
+
+    let connection =
+        Connection::open(database_path)?;
+
+    let updated_rows = connection.execute(
+        "UPDATE vault_metadata
+         SET
+            salt = ?1,
+            wrapped_vek = ?2
+         WHERE id = 1",
+        params![
+            salt.as_slice(),
+            wrapped_vek,
+        ],
+    )?;
+
+    if updated_rows != 1 {
+        return Err(
+            "Failed to update vault password"
+                .into()
+        );
+    }
+
+    Ok(())
+}
+
+pub fn update_vault_recovery(
+    app: &tauri::AppHandle,
+    recovery_salt: &[u8; 16],
+    recovery_wrapped_vek: &[u8],
+) -> Result<(), Box<dyn std::error::Error>> {
+    let app_data_dir =
+        app.path().app_data_dir()?;
+
+    let database_path =
+        app_data_dir.join("vault.db");
+
+    let connection =
+        Connection::open(database_path)?;
+
+    let updated_rows = connection.execute(
+        "UPDATE vault_metadata
+         SET
+            recovery_salt = ?1,
+            recovery_wrapped_vek = ?2
+         WHERE id = 1",
+        params![
+            recovery_salt.as_slice(),
+            recovery_wrapped_vek,
+        ],
+    )?;
+
+    if updated_rows != 1 {
+        return Err(
+            "Failed to update vault recovery key"
+                .into()
+        );
+    }
+
+    Ok(())
+}
+
+pub fn get_auto_lock_seconds(
+    app: &tauri::AppHandle,
+) -> Result<u64, String> {
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?;
+
+    let database_path =
+        app_data_dir.join("vault.db");
+
+    let connection =
+        Connection::open(database_path)
+            .map_err(|error| error.to_string())?;
+
+    let value: String = connection
+        .query_row(
+            "SELECT value
+             FROM settings
+             WHERE key = 'auto_lock_seconds'",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|error| error.to_string())?;
+
+    value
+        .parse::<u64>()
+        .map_err(|_| {
+            "Invalid auto-lock setting"
+                .to_string()
+        })
+}
+
+pub fn set_auto_lock_seconds(
+    app: &tauri::AppHandle,
+    seconds: u64,
+) -> Result<(), String> {
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?;
+
+    let database_path =
+        app_data_dir.join("vault.db");
+
+    let connection =
+        Connection::open(database_path)
+            .map_err(|error| error.to_string())?;
+
+    connection
+        .execute(
+            "INSERT INTO settings (
+                key,
+                value
+            ) VALUES (
+                'auto_lock_seconds',
+                ?1
+            )
+            ON CONFLICT(key)
+            DO UPDATE SET value = excluded.value",
+            params![seconds.to_string()],
+        )
+        .map_err(|error| error.to_string())?;
+
+    Ok(())
 }
 
 pub fn insert_credential(

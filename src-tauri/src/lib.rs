@@ -56,6 +56,24 @@ fn is_vault_initialized(
 }
 
 #[tauri::command]
+fn get_auto_lock_seconds(
+    app: tauri::AppHandle,
+) -> Result<u64, String> {
+    storage::get_auto_lock_seconds(&app)
+}
+
+#[tauri::command]
+fn set_auto_lock_seconds(
+    app: tauri::AppHandle,
+    seconds: u64,
+) -> Result<(), String> {
+    storage::set_auto_lock_seconds(
+        &app,
+        seconds,
+    )
+}
+
+#[tauri::command]
 fn unlock_vault(
     app: tauri::AppHandle,
     password: String,
@@ -81,6 +99,162 @@ fn unlock_vault(
         &kek,
         &wrapped_vek,
     )?;
+
+    state.unlock(vek)?;
+
+    Ok(())
+}
+
+#[tauri::command]
+fn change_master_password(
+    app: tauri::AppHandle,
+    current_password: String,
+    new_password: String,
+    state: tauri::State<'_, vault::VaultState>,
+) -> Result<(), String> {
+    state.get_vek()?;
+
+    if new_password.len() < 8 {
+        return Err(
+            "Master password must be at least 8 characters."
+                .to_string(),
+        );
+    }
+
+    let (
+        salt,
+        wrapped_vek,
+        _recovery_salt,
+        _recovery_wrapped_vek,
+    ) = storage::get_vault_metadata(&app)?;
+
+    let salt: [u8; 16] = salt
+        .try_into()
+        .map_err(|_| {
+            "Invalid vault salt".to_string()
+        })?;
+
+    let current_kek =
+        crypto::derive_kek(
+            &current_password,
+            &salt,
+        )?;
+
+    let vek =
+        crypto::unwrap_vault_key(
+            &current_kek,
+            &wrapped_vek,
+        )
+        .map_err(|_| {
+            "Current master password is incorrect."
+                .to_string()
+        })?;
+
+    let new_salt =
+        crypto::generate_salt();
+
+    let new_kek =
+        crypto::derive_kek(
+            &new_password,
+            &new_salt,
+        )?;
+
+    let new_wrapped_vek =
+        crypto::wrap_vault_key(
+            &new_kek,
+            &vek,
+        )?;
+
+    storage::update_vault_password(
+        &app,
+        &new_salt,
+        &new_wrapped_vek,
+    )
+    .map_err(|error| error.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+fn reset_master_password_with_recovery(
+    app: tauri::AppHandle,
+    recovery_key: String,
+    new_password: String,
+    state: tauri::State<'_, vault::VaultState>,
+) -> Result<(), String> {
+    if new_password.len() < 8 {
+        return Err(
+            "Master password must be at least 8 characters."
+                .to_string(),
+        );
+    }
+
+    let (
+        _salt,
+        _wrapped_vek,
+        recovery_salt,
+        recovery_wrapped_vek,
+    ) = storage::get_vault_metadata(&app)?;
+
+    let recovery_key_bytes =
+        hex_to_bytes(&recovery_key)?;
+
+    if recovery_key_bytes.len() != 32 {
+        return Err(
+            "Invalid recovery key".to_string()
+        );
+    }
+
+    let recovery_key: [u8; 32] =
+        recovery_key_bytes
+            .try_into()
+            .map_err(|_| {
+                "Invalid recovery key".to_string()
+            })?;
+
+    let recovery_salt: [u8; 16] =
+        recovery_salt
+            .try_into()
+            .map_err(|_| {
+                "Invalid recovery salt".to_string()
+            })?;
+
+    let recovery_kek =
+        crypto::derive_recovery_kek(
+            &recovery_key,
+            &recovery_salt,
+        )?;
+
+    let vek =
+        crypto::unwrap_vault_key(
+            &recovery_kek,
+            &recovery_wrapped_vek,
+        )
+        .map_err(|_| {
+            "Invalid recovery key".to_string()
+        })?;
+
+    let new_salt =
+        crypto::generate_salt();
+
+    let new_kek =
+        crypto::derive_kek(
+            &new_password,
+            &new_salt,
+        )?;
+
+    let new_wrapped_vek =
+        crypto::wrap_vault_key(
+            &new_kek,
+            &vek,
+        )?;
+
+    storage::update_vault_password(
+        &app,
+        &new_salt,
+        &new_wrapped_vek,
+    )
+    .map_err(|error| error.to_string())?;
 
     state.unlock(vek)?;
 
@@ -375,6 +549,49 @@ fn delete_credential(
     Ok(())
 }
 
+#[tauri::command]
+fn generate_new_recovery_key(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, vault::VaultState>,
+) -> Result<String, String> {
+    let vek = state.get_vek()?;
+
+    let recovery_key =
+        crypto::generate_recovery_key();
+
+    let recovery_salt =
+        crypto::generate_salt();
+
+    let recovery_kek =
+        crypto::derive_recovery_kek(
+            &recovery_key,
+            &recovery_salt,
+        )?;
+
+    let recovery_wrapped_vek =
+        crypto::wrap_vault_key(
+            &recovery_kek,
+            &vek,
+        )?;
+
+    storage::update_vault_recovery(
+        &app,
+        &recovery_salt,
+        &recovery_wrapped_vek,
+    )
+    .map_err(|error| error.to_string())?;
+
+    let recovery_key_hex =
+        recovery_key
+            .iter()
+            .map(|byte| {
+                format!("{byte:02x}")
+            })
+            .collect::<String>();
+
+    Ok(recovery_key_hex)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -425,13 +642,18 @@ pub fn run() {
                 initialize_vault,
                 is_vault_initialized,
                 unlock_vault,
+                change_master_password,
+                reset_master_password_with_recovery,
                 recover_vault,
+                get_auto_lock_seconds,
+                set_auto_lock_seconds,
                 lock_vault,
                 is_vault_unlocked,
                 create_credential,
                 update_credential,
                 delete_credential,
-                get_credentials
+                get_credentials,
+                generate_new_recovery_key
             ]
         )
         .run(

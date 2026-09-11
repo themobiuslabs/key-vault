@@ -508,6 +508,31 @@ textarea {
   font-size: 13px;
 }
 
+.secret-input {
+  position: relative;
+}
+
+.secret-input input {
+  padding-right: 58px;
+}
+
+.secret-toggle {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  padding: 4px 6px;
+  border: 0;
+  background: transparent;
+  color: #70757d;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.secret-toggle:hover {
+  color: #17181a;
+}
+
 .danger-zone {
   display: flex;
   align-items: flex-start;
@@ -561,6 +586,222 @@ textarea {
   gap: 8px;
 }
 
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.settings-success {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f1f8f3;
+  color: #26733f;
+  font-size: 13px;
+}
+
+.settings-group {
+  margin-bottom: 32px;
+}
+
+.settings-group:last-child {
+  margin-bottom: 0;
+}
+
+.settings-group-header {
+  margin-bottom: 14px;
+}
+
+.settings-group-header h2 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.settings-group-header p {
+  margin: 5px 0 0;
+  color: #777c84;
+  font-size: 13px;
+}
+
+.settings-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.settings-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 108px;
+  width: 100%;
+  gap: 20px;
+  padding: 18px;
+  border: 1px solid #e1e3e6;
+  border-radius: 12px;
+  background: #ffffff;
+  color: inherit;
+  text-align: left;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+button.settings-card {
+  cursor: pointer;
+}
+
+button.settings-card:hover {
+  border-color: #c9ccd1;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+  transform: translateY(-1px);
+}
+
+.settings-card-static {
+  cursor: default;
+}
+
+.settings-card strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+
+.settings-card div > span {
+  display: block;
+  max-width: 300px;
+  color: #777c84;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.settings-card-arrow {
+  flex-shrink: 0;
+  color: #999da4;
+  font-size: 18px;
+}
+
+.settings-card select {
+  flex-shrink: 0;
+  width: 130px;
+}
+
+.settings-action-card {
+  padding: 28px;
+  background: #ffffff;
+  border: 1px solid #e1e3e6;
+  border-radius: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
+.settings-action-header {
+  margin-bottom: 28px;
+}
+
+.settings-action-header .back-button {
+  margin-bottom: 20px;
+}
+
+.settings-action-header h2 {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+}
+
+.settings-action-header p {
+  margin: 6px 0 0;
+  color: #777c84;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.settings-warning {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #fff8e7;
+  color: #7a5a16;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.settings-toggle {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.settings-toggle input {
+  width: auto;
+  height: auto;
+}
+
+.settings-toggle span {
+  color: #686d75;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.vault-info-list {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid #eceef0;
+}
+
+.vault-info-list > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 14px 0;
+  border-bottom: 1px solid #eceef0;
+}
+
+.vault-info-list span {
+  color: #777c84;
+  font-size: 13px;
+}
+
+.vault-info-list strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.recovery-key {
+  padding: 16px;
+  overflow-wrap: anywhere;
+  border: 1px solid #d9dce1;
+  border-radius: 10px;
+  background: #f5f6f8;
+  color: #17181a;
+  font-family: monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  letter-spacing: 0.04em;
+}
+
+.recovery-confirmation {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.recovery-confirmation input {
+  width: auto;
+  height: auto;
+  margin-top: 2px;
+}
+
+.recovery-confirmation span {
+  color: #4b4f55;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
 @media (max-width: 800px) {
   .sidebar {
     width: 190px;
@@ -595,29 +836,24 @@ textarea {
   .setup-card {
     padding: 28px;
   }
-}
 
-.secret-input {
-  position: relative;
-}
+  .settings-card-grid {
+    grid-template-columns: 1fr;
+  }
 
-.secret-input input {
-  padding-right: 58px;
-}
+  .settings-card {
+    min-height: 96px;
+  }
 
-.secret-toggle {
-  position: absolute;
-  top: 50%;
-  right: 8px;
-  transform: translateY(-50%);
-  padding: 4px 6px;
-  border: 0;
-  background: transparent;
-  color: #70757d;
-  font-size: 12px;
-  font-weight: 600;
-}
+  .settings-card-static {
+    align-items: flex-start;
+  }
 
-.secret-toggle:hover {
-  color: #17181a;
+  .settings-card select {
+    width: 120px;
+  }
+
+  .settings-action-card {
+    padding: 22px;
+  }
 }
