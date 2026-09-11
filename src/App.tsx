@@ -9,6 +9,7 @@ import SetupVaultView from "./views/SetupVaultView";
 import UnlockVaultView from "./views/UnlockVaultView";
 import SettingsView from "./views/SettingsView";
 import type { Credential } from "./types/credential";
+import type { ThemePreference } from "./types/theme";
 import "./App.css";
 
 type View =
@@ -39,6 +40,12 @@ function App() {
 
   const [autoLockSeconds, setAutoLockSeconds] =
     useState(600);
+
+  const [theme, setTheme] =
+    useState<ThemePreference>("system");
+
+  const [themeLoaded, setThemeLoaded] =
+    useState(false);
 
   async function checkVaultStatus() {
     try {
@@ -108,7 +115,26 @@ function App() {
     }
   }
 
+  async function loadThemeSetting() {
+    try {
+      const savedTheme =
+        await invoke<ThemePreference>(
+          "get_theme"
+        );
+
+      setTheme(savedTheme);
+    } catch (error) {
+      console.error(
+        "Failed to load theme setting:",
+        error
+      );
+    } finally {
+      setThemeLoaded(true);
+    }
+  }
+
   useEffect(() => {
+    loadThemeSetting();
     checkVaultStatus();
   }, []);
 
@@ -191,6 +217,23 @@ function App() {
     }
   }
 
+  async function handleThemeChanged(
+    nextTheme: ThemePreference
+  ) {
+    const previousTheme = theme;
+
+    setTheme(nextTheme);
+
+    try {
+      await invoke("set_theme", {
+        theme: nextTheme,
+      });
+    } catch (error) {
+      setTheme(previousTheme);
+      throw error;
+    }
+  }
+
   function openCredential(
     credential: Credential
   ) {
@@ -228,32 +271,48 @@ function App() {
     setView("credentials");
   }
 
-  if (vaultInitialized === null) {
+  if (
+    vaultInitialized === null ||
+    !themeLoaded
+  ) {
     return null;
   }
 
   if (!vaultInitialized) {
     return (
-      <SetupVaultView
-        onVaultInitialized={() => {
-          setVaultInitialized(true);
-        }}
-      />
+      <div
+        className="app-root"
+        data-theme={theme}
+      >
+        <SetupVaultView
+          onVaultInitialized={() => {
+            setVaultInitialized(true);
+          }}
+        />
+      </div>
     );
   }
 
   if (!vaultUnlocked) {
     return (
-      <UnlockVaultView
-        onUnlocked={() => {
-          setVaultUnlocked(true);
-        }}
-      />
+      <div
+        className="app-root"
+        data-theme={theme}
+      >
+        <UnlockVaultView
+          onUnlocked={() => {
+            setVaultUnlocked(true);
+          }}
+        />
+      </div>
     );
   }
 
   return (
-    <div className="app">
+    <div
+      className="app app-root"
+      data-theme={theme}
+    >
       <Sidebar
         view={view}
         onViewChange={setView}
@@ -345,6 +404,10 @@ function App() {
             }
             onAutoLockChanged={
               setAutoLockSeconds
+            }
+            theme={theme}
+            onThemeChanged={
+              handleThemeChanged
             }
           />
         )}

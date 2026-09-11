@@ -153,15 +153,6 @@ function UnlockVaultView({
     setConfirmPassword("");
   }
 
-  function switchToRecovery() {
-    setMode("recovery");
-    setError("");
-    setPassword("");
-    setRecoveryKey("");
-    setNewPassword("");
-    setConfirmPassword("");
-  }
-
   return (
     <main className="setup-screen">
       <section className="setup-card">

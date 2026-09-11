@@ -1,9 +1,30 @@
-use rusqlite::{params, Connection};
+use rusqlite::{
+    params,
+    Connection,
+    OptionalExtension,
+};
 use tauri::Manager;
 
 use crate::CredentialMetadata;
 
 const CURRENT_SCHEMA_VERSION: i32 = 2;
+const DEFAULT_AUTO_LOCK_SECONDS: &str = "600";
+const DEFAULT_THEME: &str = "system";
+
+fn open_database(
+    app: &tauri::AppHandle,
+) -> Result<Connection, String> {
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|error| error.to_string())?;
+
+    let database_path =
+        app_data_dir.join("vault.db");
+
+    Connection::open(database_path)
+        .map_err(|error| error.to_string())
+}
 
 fn get_schema_version(
     connection: &Connection,
@@ -91,9 +112,9 @@ fn migrate_database(
                 value
             ) VALUES (
                 'auto_lock_seconds',
-                '600'
+                ?1
             )",
-            [],
+            params![DEFAULT_AUTO_LOCK_SECONDS],
         )?;
 
         set_schema_version(
@@ -105,6 +126,41 @@ fn migrate_database(
     transaction.commit()?;
 
     Ok(())
+}
+
+fn initialize_default_settings(
+    connection: &Connection,
+) -> Result<(), rusqlite::Error> {
+    connection.execute(
+        "INSERT OR IGNORE INTO settings (
+            key,
+            value
+        ) VALUES (
+            'auto_lock_seconds',
+            ?1
+        )",
+        params![DEFAULT_AUTO_LOCK_SECONDS],
+    )?;
+
+    connection.execute(
+        "INSERT OR IGNORE INTO settings (
+            key,
+            value
+        ) VALUES (
+            'theme',
+            ?1
+        )",
+        params![DEFAULT_THEME],
+    )?;
+
+    Ok(())
+}
+
+fn is_valid_theme(theme: &str) -> bool {
+    matches!(
+        theme,
+        "system" | "light" | "dark"
+    )
 }
 
 pub fn initialize_database(
@@ -130,6 +186,8 @@ pub fn initialize_database(
         &mut connection,
         schema_version,
     )?;
+
+    initialize_default_settings(&connection)?;
 
     Ok(())
 }
@@ -392,17 +450,8 @@ pub fn update_vault_recovery(
 pub fn get_auto_lock_seconds(
     app: &tauri::AppHandle,
 ) -> Result<u64, String> {
-    let app_data_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| error.to_string())?;
-
-    let database_path =
-        app_data_dir.join("vault.db");
-
     let connection =
-        Connection::open(database_path)
-            .map_err(|error| error.to_string())?;
+        open_database(app)?;
 
     let value: String = connection
         .query_row(
@@ -426,17 +475,8 @@ pub fn set_auto_lock_seconds(
     app: &tauri::AppHandle,
     seconds: u64,
 ) -> Result<(), String> {
-    let app_data_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| error.to_string())?;
-
-    let database_path =
-        app_data_dir.join("vault.db");
-
     let connection =
-        Connection::open(database_path)
-            .map_err(|error| error.to_string())?;
+        open_database(app)?;
 
     connection
         .execute(
@@ -450,6 +490,66 @@ pub fn set_auto_lock_seconds(
             ON CONFLICT(key)
             DO UPDATE SET value = excluded.value",
             params![seconds.to_string()],
+        )
+        .map_err(|error| error.to_string())?;
+
+    Ok(())
+}
+
+pub fn get_theme(
+    app: &tauri::AppHandle,
+) -> Result<String, String> {
+    let connection =
+        open_database(app)?;
+
+    let theme = connection
+        .query_row(
+            "SELECT value
+             FROM settings
+             WHERE key = 'theme'",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(|error| error.to_string())?
+        .unwrap_or_else(|| {
+            DEFAULT_THEME.to_string()
+        });
+
+    if !is_valid_theme(&theme) {
+        return Err(
+            "Invalid theme setting".to_string()
+        );
+    }
+
+    Ok(theme)
+}
+
+pub fn set_theme(
+    app: &tauri::AppHandle,
+    theme: &str,
+) -> Result<(), String> {
+    if !is_valid_theme(theme) {
+        return Err(
+            "Invalid theme setting".to_string()
+        );
+    }
+
+    let connection =
+        open_database(app)?;
+
+    connection
+        .execute(
+            "INSERT INTO settings (
+                key,
+                value
+            ) VALUES (
+                'theme',
+                ?1
+            )
+            ON CONFLICT(key)
+            DO UPDATE SET value = excluded.value",
+            params![theme],
         )
         .map_err(|error| error.to_string())?;
 

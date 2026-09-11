@@ -1,11 +1,16 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import type { ThemePreference } from "../types/theme";
 
 type SettingsViewProps = {
   onBack: () => void;
   onAutoLockChanged: (
     seconds: number
   ) => void;
+  theme: ThemePreference;
+  onThemeChanged: (
+    theme: ThemePreference
+  ) => Promise<void>;
 };
 
 type SettingsAction =
@@ -21,9 +26,20 @@ const AUTO_LOCK_OPTIONS = [
   { label: "1 hour", seconds: 3600 },
 ];
 
+const THEME_OPTIONS: {
+  label: string;
+  value: ThemePreference;
+}[] = [
+  { label: "System", value: "system" },
+  { label: "Light", value: "light" },
+  { label: "Dark", value: "dark" },
+];
+
 function SettingsView({
   onBack,
   onAutoLockChanged,
+  theme,
+  onThemeChanged,
 }: SettingsViewProps) {
   const [action, setAction] =
     useState<SettingsAction>("none");
@@ -39,11 +55,6 @@ function SettingsView({
 
   const [recoveryKey, setRecoveryKey] =
     useState<string | null>(null);
-
-  const [
-    showRecoveryConfirmation,
-    setShowRecoveryConfirmation,
-  ] = useState(false);
 
   const [hasSavedRecoveryKey, setHasSavedRecoveryKey] =
     useState(false);
@@ -71,8 +82,8 @@ function SettingsView({
   const [isSavingAutoLock, setIsSavingAutoLock] =
     useState(false);
 
-  const [theme, setTheme] =
-    useState("System");
+  const [isSavingTheme, setIsSavingTheme] =
+    useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -111,7 +122,6 @@ function SettingsView({
     setNewPassword("");
     setConfirmPassword("");
     setRecoveryKey(null);
-    setShowRecoveryConfirmation(false);
     setHasSavedRecoveryKey(false);
   }
 
@@ -123,7 +133,6 @@ function SettingsView({
     setNewPassword("");
     setConfirmPassword("");
     setRecoveryKey(null);
-    setShowRecoveryConfirmation(false);
     setHasSavedRecoveryKey(false);
   }
 
@@ -201,9 +210,6 @@ function SettingsView({
         generatedRecoveryKey
       );
 
-      setShowRecoveryConfirmation(
-        true
-      );
       setHasSavedRecoveryKey(false);
     } catch (error) {
       console.error(
@@ -228,7 +234,6 @@ function SettingsView({
     }
 
     setRecoveryKey(null);
-    setShowRecoveryConfirmation(false);
     setHasSavedRecoveryKey(false);
 
     setSuccess(
@@ -268,6 +273,33 @@ function SettingsView({
       );
     } finally {
       setIsSavingAutoLock(false);
+    }
+  }
+
+  async function handleThemeChange(
+    nextTheme: ThemePreference
+  ) {
+    if (isSavingTheme) {
+      return;
+    }
+
+    setError("");
+    setSuccess("");
+    setIsSavingTheme(true);
+
+    try {
+      await onThemeChanged(nextTheme);
+    } catch (error) {
+      console.error(
+        "Failed to save theme setting:",
+        error
+      );
+
+      setError(
+        "Failed to save theme setting."
+      );
+    } finally {
+      setIsSavingTheme(false);
     }
   }
 
@@ -435,22 +467,23 @@ function SettingsView({
               <select
                 value={theme}
                 onChange={(event) =>
-                  setTheme(
-                    event.target.value
+                  handleThemeChange(
+                    event.target
+                      .value as ThemePreference
                   )
                 }
+                disabled={isSavingTheme}
               >
-                <option value="System">
-                  System
-                </option>
-
-                <option value="Light">
-                  Light
-                </option>
-
-                <option value="Dark">
-                  Dark
-                </option>
+                {THEME_OPTIONS.map(
+                  (option) => (
+                    <option
+                      key={option.value}
+                      value={option.value}
+                    >
+                      {option.label}
+                    </option>
+                  )
+                )}
               </select>
             </div>
           </div>

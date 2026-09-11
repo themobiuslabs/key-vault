@@ -74,6 +74,24 @@ fn set_auto_lock_seconds(
 }
 
 #[tauri::command]
+fn get_theme(
+    app: tauri::AppHandle,
+) -> Result<String, String> {
+    storage::get_theme(&app)
+}
+
+#[tauri::command]
+fn set_theme(
+    app: tauri::AppHandle,
+    theme: String,
+) -> Result<(), String> {
+    storage::set_theme(
+        &app,
+        &theme,
+    )
+}
+
+#[tauri::command]
 fn unlock_vault(
     app: tauri::AppHandle,
     password: String,
@@ -647,6 +665,8 @@ pub fn run() {
                 recover_vault,
                 get_auto_lock_seconds,
                 set_auto_lock_seconds,
+                get_theme,
+                set_theme,
                 lock_vault,
                 is_vault_unlocked,
                 create_credential,
