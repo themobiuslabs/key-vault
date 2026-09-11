@@ -50,6 +50,71 @@ fn set_schema_version(
     Ok(())
 }
 
+fn migrate_to_v1(
+    connection: &rusqlite::Transaction<'_>,
+) -> Result<(), rusqlite::Error> {
+    connection.execute(
+        "CREATE TABLE IF NOT EXISTS credentials (
+            id TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            provider TEXT NOT NULL,
+            credential_type TEXT NOT NULL,
+            encrypted_data BLOB NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )",
+        [],
+    )?;
+
+    connection.execute(
+        "CREATE TABLE IF NOT EXISTS vault_metadata (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            salt BLOB NOT NULL,
+            wrapped_vek BLOB NOT NULL,
+            recovery_salt BLOB NOT NULL,
+            recovery_wrapped_vek BLOB NOT NULL
+        )",
+        [],
+    )?;
+
+    set_schema_version(
+        connection,
+        1,
+    )?;
+
+    Ok(())
+}
+
+fn migrate_to_v2(
+    connection: &rusqlite::Transaction<'_>,
+) -> Result<(), rusqlite::Error> {
+    connection.execute(
+        "CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        )",
+        [],
+    )?;
+
+    connection.execute(
+        "INSERT OR IGNORE INTO settings (
+            key,
+            value
+        ) VALUES (
+            'auto_lock_seconds',
+            ?1
+        )",
+        params![DEFAULT_AUTO_LOCK_SECONDS],
+    )?;
+
+    set_schema_version(
+        connection,
+        2,
+    )?;
+
+    Ok(())
+}
+
 fn migrate_database(
     connection: &mut Connection,
     current_version: i32,
@@ -67,59 +132,14 @@ fn migrate_database(
         connection.transaction()?;
 
     if current_version < 1 {
-        transaction.execute(
-            "CREATE TABLE IF NOT EXISTS credentials (
-                id TEXT PRIMARY KEY,
-                title TEXT NOT NULL,
-                provider TEXT NOT NULL,
-                credential_type TEXT NOT NULL,
-                encrypted_data BLOB NOT NULL,
-                created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL
-            )",
-            [],
-        )?;
-
-        transaction.execute(
-            "CREATE TABLE IF NOT EXISTS vault_metadata (
-                id INTEGER PRIMARY KEY CHECK (id = 1),
-                salt BLOB NOT NULL,
-                wrapped_vek BLOB NOT NULL,
-                recovery_salt BLOB NOT NULL,
-                recovery_wrapped_vek BLOB NOT NULL
-            )",
-            [],
-        )?;
-
-        set_schema_version(
+        migrate_to_v1(
             &transaction,
-            1,
         )?;
     }
 
     if current_version < 2 {
-        transaction.execute(
-            "CREATE TABLE IF NOT EXISTS settings (
-                key TEXT PRIMARY KEY,
-                value TEXT NOT NULL
-            )",
-            [],
-        )?;
-
-        transaction.execute(
-            "INSERT OR IGNORE INTO settings (
-                key,
-                value
-            ) VALUES (
-                'auto_lock_seconds',
-                ?1
-            )",
-            params![DEFAULT_AUTO_LOCK_SECONDS],
-        )?;
-
-        set_schema_version(
+        migrate_to_v2(
             &transaction,
-            2,
         )?;
     }
 
@@ -187,7 +207,9 @@ pub fn initialize_database(
         schema_version,
     )?;
 
-    initialize_default_settings(&connection)?;
+    initialize_default_settings(
+        &connection
+    )?;
 
     Ok(())
 }

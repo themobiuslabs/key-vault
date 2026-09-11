@@ -20,6 +20,7 @@ type SettingsAction =
 
 const AUTO_LOCK_OPTIONS = [
   { label: "Never", seconds: 0 },
+  { label: "1 minute", seconds: 60 },
   { label: "5 minutes", seconds: 300 },
   { label: "10 minutes", seconds: 600 },
   { label: "30 minutes", seconds: 1800 },

@@ -41,6 +41,9 @@ function App() {
   const [autoLockSeconds, setAutoLockSeconds] =
     useState(600);
 
+  const [autoLockLoaded, setAutoLockLoaded] =
+    useState(false);
+
   const [theme, setTheme] =
     useState<ThemePreference>("system");
 
@@ -112,6 +115,8 @@ function App() {
         "Failed to load auto-lock setting:",
         error
       );
+    } finally {
+      setAutoLockLoaded(true);
     }
   }
 
@@ -135,13 +140,13 @@ function App() {
 
   useEffect(() => {
     loadThemeSetting();
+    loadAutoLockSetting();
     checkVaultStatus();
   }, []);
 
   useEffect(() => {
     if (vaultUnlocked) {
       loadCredentials().catch(() => {});
-      loadAutoLockSetting();
     }
   }, [vaultUnlocked]);
 
@@ -150,14 +155,20 @@ function App() {
       return;
     }
 
+    if (!autoLockLoaded) {
+      return;
+    }
+
     if (autoLockSeconds === 0) {
       return;
     }
 
-    let timer: ReturnType<typeof setTimeout>;
+    let timer: ReturnType<typeof setTimeout> | undefined;
 
     function resetAutoLockTimer() {
-      clearTimeout(timer);
+      if (timer) {
+        clearTimeout(timer);
+      }
 
       timer = setTimeout(() => {
         handleLock();
@@ -184,7 +195,9 @@ function App() {
     resetAutoLockTimer();
 
     return () => {
-      clearTimeout(timer);
+      if (timer) {
+        clearTimeout(timer);
+      }
 
       activityEvents.forEach(
         (eventName) => {
@@ -197,6 +210,7 @@ function App() {
     };
   }, [
     vaultUnlocked,
+    autoLockLoaded,
     autoLockSeconds,
   ]);
 
@@ -273,7 +287,8 @@ function App() {
 
   if (
     vaultInitialized === null ||
-    !themeLoaded
+    !themeLoaded ||
+    !autoLockLoaded
   ) {
     return null;
   }
