@@ -137,7 +137,7 @@ function UnlockVaultView({
       );
 
       setError(
-        String(error)
+        "Could not reset your master password."
       );
     } finally {
       setIsUnlocking(false);

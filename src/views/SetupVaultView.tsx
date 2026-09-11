@@ -5,6 +5,10 @@ type SetupVaultViewProps = {
   onVaultInitialized: () => void;
 };
 
+function formatRecoveryKey(key: string): string {
+  return key.match(/.{1,8}/g)?.join(" ") ?? key;
+}
+
 function SetupVaultView({
   onVaultInitialized,
 }: SetupVaultViewProps) {
@@ -14,8 +18,13 @@ function SetupVaultView({
   const [recoveryKey, setRecoveryKey] =
     useState<string | null>(null);
   const [error, setError] = useState("");
-  const [isCreating, setIsCreating] = useState(false);
-  const [hasConfirmedRecoveryKey, setHasConfirmedRecoveryKey] =
+  const [isCreating, setIsCreating] =
+    useState(false);
+  const [
+    hasConfirmedRecoveryKey,
+    setHasConfirmedRecoveryKey,
+  ] = useState(false);
+  const [isCopied, setIsCopied] =
     useState(false);
 
   async function createVault() {
@@ -37,11 +46,16 @@ function SetupVaultView({
 
     try {
       const generatedRecoveryKey =
-        await invoke<string>("initialize_vault", {
-          password,
-        });
+        await invoke<string>(
+          "initialize_vault",
+          {
+            password,
+          }
+        );
 
-      setRecoveryKey(generatedRecoveryKey);
+      setRecoveryKey(
+        generatedRecoveryKey
+      );
     } catch (error) {
       console.error(
         "Failed to initialize vault:",
@@ -51,6 +65,34 @@ function SetupVaultView({
       setError(String(error));
     } finally {
       setIsCreating(false);
+    }
+  }
+
+  async function copyRecoveryKey() {
+    if (!recoveryKey) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(
+        recoveryKey
+      );
+
+      setIsCopied(true);
+      setError("");
+
+      setTimeout(() => {
+        setIsCopied(false);
+      }, 1500);
+    } catch (error) {
+      console.error(
+        "Failed to copy recovery key:",
+        error
+      );
+
+      setError(
+        "Could not copy the recovery key."
+      );
     }
   }
 
@@ -68,42 +110,98 @@ function SetupVaultView({
   if (recoveryKey) {
     return (
       <main className="setup-screen">
-        <section className="setup-card">
+        <section className="setup-card recovery-card">
           <div className="logo">
-            <div className="logo-mark">K</div>
+            <div className="logo-mark">
+              K
+            </div>
+
             <span>KeyVault</span>
           </div>
 
-          <p className="eyebrow">
-            RECOVERY KEY
-          </p>
+          <div className="recovery-heading">
+            <p className="eyebrow">
+              RECOVERY KEY
+            </p>
 
-          <h1>Save your recovery key</h1>
+            <h1>
+              Save your recovery key
+            </h1>
 
-          <p className="subtitle">
-            This is the only time KeyVault will show
-            you this recovery key. Store it somewhere
-            safe and private.
-          </p>
+            <p className="subtitle">
+              This is the only time KeyVault
+              will show you this key. Save it
+              somewhere safe before continuing.
+            </p>
+          </div>
 
-          <div className="recovery-key">
-            {recoveryKey}
+          <div className="recovery-key-section">
+            <div className="recovery-key-header">
+              <div>
+                <span className="recovery-key-label">
+                  Your recovery key
+                </span>
+
+                <span className="recovery-key-meta">
+                  64 characters
+                </span>
+              </div>
+
+              <span className="recovery-key-private">
+                Keep private
+              </span>
+            </div>
+
+            <div className="recovery-key-container">
+              <code className="recovery-key">
+                {formatRecoveryKey(
+                  recoveryKey
+                )}
+              </code>
+
+              <button
+                type="button"
+                className="secondary-button recovery-copy-button"
+                onClick={
+                  copyRecoveryKey
+                }
+              >
+                {isCopied
+                  ? "Copied"
+                  : "Copy recovery key"}
+              </button>
+            </div>
+
+            <div className="recovery-key-warning">
+              <span className="recovery-warning-icon">
+                !
+              </span>
+
+              <p>
+                Anyone with this key can
+                recover your vault. KeyVault
+                cannot show it to you again.
+              </p>
+            </div>
           </div>
 
           <label className="recovery-confirmation">
             <input
               type="checkbox"
-              checked={hasConfirmedRecoveryKey}
-              onChange={(event) =>
+              checked={
+                hasConfirmedRecoveryKey
+              }
+              onChange={(event) => {
                 setHasConfirmedRecoveryKey(
                   event.target.checked
-                )
-              }
+                );
+                setError("");
+              }}
             />
 
             <span>
-              I have saved my recovery key somewhere
-              safe.
+              I have saved my recovery key
+              somewhere safe.
             </span>
           </label>
 
@@ -114,8 +212,11 @@ function SetupVaultView({
           )}
 
           <button
-            className="primary-button"
+            className="primary-button recovery-continue-button"
             onClick={continueToVault}
+            disabled={
+              !hasConfirmedRecoveryKey
+            }
           >
             Continue to Vault
           </button>
@@ -129,6 +230,7 @@ function SetupVaultView({
       <section className="setup-card">
         <div className="logo">
           <div className="logo-mark">K</div>
+
           <span>KeyVault</span>
         </div>
 
@@ -139,8 +241,8 @@ function SetupVaultView({
         <h1>Create your vault</h1>
 
         <p className="subtitle">
-          Create a master password to protect your
-          credentials.
+          Create a master password to
+          protect your credentials.
         </p>
 
         <div className="setup-form">
@@ -151,7 +253,9 @@ function SetupVaultView({
               type="password"
               value={password}
               onChange={(event) =>
-                setPassword(event.target.value)
+                setPassword(
+                  event.target.value
+                )
               }
               placeholder="Enter master password"
             />
@@ -164,7 +268,9 @@ function SetupVaultView({
               type="password"
               value={confirmPassword}
               onChange={(event) =>
-                setConfirmPassword(event.target.value)
+                setConfirmPassword(
+                  event.target.value
+                )
               }
               placeholder="Confirm master password"
             />
