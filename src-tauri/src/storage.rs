@@ -497,20 +497,23 @@ pub fn set_auto_lock_seconds(
     app: &tauri::AppHandle,
     seconds: u64,
 ) -> Result<(), String> {
-    let connection =
-        open_database(app)?;
+    match seconds {
+        0 | 60 | 300 | 600 | 1800 | 3600 => {}
+        _ => {
+            return Err(
+                "Invalid auto-lock duration".to_string()
+            );
+        }
+    }
+
+    let connection = open_database(app)?;
 
     connection
         .execute(
-            "INSERT INTO settings (
-                key,
-                value
-            ) VALUES (
-                'auto_lock_seconds',
-                ?1
-            )
-            ON CONFLICT(key)
-            DO UPDATE SET value = excluded.value",
+            "INSERT INTO settings (key, value)
+             VALUES ('auto_lock_seconds', ?1)
+             ON CONFLICT(key)
+             DO UPDATE SET value = excluded.value",
             params![seconds.to_string()],
         )
         .map_err(|error| error.to_string())?;
