@@ -72,3 +72,97 @@ impl VaultState {
             .ok_or_else(|| "Vault is locked".to_string())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn vault_starts_locked() {
+        let vault = VaultState::new();
+
+        assert!(
+            !vault.is_unlocked()
+                .expect("vault state should be accessible")
+        );
+    }
+
+    #[test]
+    fn vault_unlock_stores_vek() {
+        let vault = VaultState::new();
+        let vek = [42u8; 32];
+
+        vault
+            .unlock(vek)
+            .expect("unlock should succeed");
+
+        assert!(
+            vault
+                .is_unlocked()
+                .expect("vault state should be accessible")
+        );
+
+        assert_eq!(
+            vault
+                .get_vek()
+                .expect("VEK should be available"),
+            vek
+        );
+    }
+
+    #[test]
+    fn vault_lock_removes_vek() {
+        let vault = VaultState::new();
+        let vek = [42u8; 32];
+
+        vault
+            .unlock(vek)
+            .expect("unlock should succeed");
+
+        vault
+            .lock()
+            .expect("lock should succeed");
+
+        assert!(
+            !vault
+                .is_unlocked()
+                .expect("vault state should be accessible")
+        );
+
+        assert!(
+            vault.get_vek().is_err(),
+            "VEK should not be available after locking"
+        );
+    }
+
+    #[test]
+    fn unlocking_again_replaces_existing_vek() {
+        let vault = VaultState::new();
+
+        let first_vek = [1u8; 32];
+        let second_vek = [2u8; 32];
+
+        vault
+            .unlock(first_vek)
+            .expect("first unlock should succeed");
+
+        assert_eq!(
+            vault
+                .get_vek()
+                .expect("first VEK should be available"),
+            first_vek
+        );
+
+        vault
+            .unlock(second_vek)
+            .expect("second unlock should succeed");
+
+        assert_eq!(
+            vault
+                .get_vek()
+                .expect("second VEK should be available"),
+            second_vek
+        );
+    }
+
+}
