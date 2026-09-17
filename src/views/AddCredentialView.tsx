@@ -5,7 +5,7 @@ import SecretInput from "../components/SecretInput";
 
 type AddCredentialViewProps = {
   onBack: () => void;
-  onCredentialSaved: () => void;
+  onCredentialSaved: () => Promise<void>;
 };
 
 function AddCredentialView({
@@ -80,6 +80,20 @@ function AddCredentialView({
         }
       );
 
+      try {
+        await onCredentialSaved();
+      } catch (error) {
+        console.error(
+          "Credential saved but list refresh failed:",
+          error
+        );
+
+        setError(
+          "Credential saved, but the list could not be refreshed. Please try again."
+        );
+        return;
+      }
+
       setTitle("");
       setProvider("");
       setCredentialType("API Key");
@@ -87,8 +101,6 @@ function AddCredentialView({
       setSecretKey("");
       setNotes("");
       setTags("");
-
-      onCredentialSaved();
     } catch (error) {
       console.error(
         "Failed to save credential:",
@@ -141,10 +153,11 @@ function AddCredentialView({
       <section className="card">
         <form onSubmit={handleSubmit}>
           <div className="form-grid">
-            <label>
+            <label htmlFor="add-title">
               <span>Title</span>
 
               <input
+                id="add-title"
                 value={title}
                 onChange={(event) =>
                   setTitle(
@@ -156,10 +169,11 @@ function AddCredentialView({
               />
             </label>
 
-            <label>
+            <label htmlFor="add-provider">
               <span>Provider</span>
 
               <input
+                id="add-provider"
                 value={provider}
                 onChange={(event) =>
                   setProvider(
@@ -171,12 +185,13 @@ function AddCredentialView({
               />
             </label>
 
-            <label>
+            <label htmlFor="add-credential-type">
               <span>
                 Credential type
               </span>
 
               <select
+                id="add-credential-type"
                 value={credentialType}
                 onChange={(event) =>
                   setCredentialType(
@@ -203,48 +218,59 @@ function AddCredentialView({
               </select>
             </label>
 
-            <label>
-              <span>API Key</span>
+            <div className="form-field">
+              <label htmlFor="add-api-key">
+                <span>API Key</span>
+              </label>
 
               <SecretInput
+                id="add-api-key"
+                label="API key"
                 value={apiKey}
                 onChange={setApiKey}
                 placeholder="Enter API key"
+                describedBy="add-api-key-help"
                 disabled={isSaving}
               />
 
-              <small>
+              <small id="add-api-key-help">
                 The secret value used to
                 authenticate with the provider.
               </small>
-            </label>
+            </div>
 
-            <label>
-              <span>
-                Secret Key{" "}
-                <small>Optional</small>
-              </span>
+            <div className="form-field">
+              <label htmlFor="add-secret-key">
+                <span>
+                  Secret Key{" "}
+                  <small>Optional</small>
+                </span>
+              </label>
 
               <SecretInput
+                id="add-secret-key"
+                label="secret key"
                 value={secretKey}
                 onChange={setSecretKey}
                 placeholder="Enter secret key"
+                describedBy="add-secret-key-help"
                 disabled={isSaving}
               />
 
-              <small>
+              <small id="add-secret-key-help">
                 Use this for credentials that
                 require a second secret value.
               </small>
-            </label>
+            </div>
 
-            <label>
+            <label htmlFor="add-tags">
               <span>
                 Tags{" "}
                 <small>Optional</small>
               </span>
 
               <input
+                id="add-tags"
                 value={tags}
                 onChange={(event) =>
                   setTags(
@@ -260,13 +286,17 @@ function AddCredentialView({
               </small>
             </label>
 
-            <label className="full-width">
+            <label
+              className="full-width"
+              htmlFor="add-notes"
+            >
               <span>
                 Notes{" "}
                 <small>Optional</small>
               </span>
 
               <textarea
+                id="add-notes"
                 value={notes}
                 onChange={(event) =>
                   setNotes(
@@ -281,7 +311,7 @@ function AddCredentialView({
           </div>
 
           {error && (
-            <p className="setup-error">
+            <p className="setup-error" role="alert">
               {error}
             </p>
           )}

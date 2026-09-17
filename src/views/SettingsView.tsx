@@ -1,4 +1,8 @@
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useState,
+  type FormEvent,
+} from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { ThemePreference } from "../types/theme";
 
@@ -36,6 +40,10 @@ const THEME_OPTIONS: {
   { label: "Dark", value: "dark" },
 ];
 
+function formatRecoveryKey(key: string): string {
+  return key.match(/.{1,8}/g)?.join(" ") ?? key;
+}
+
 function SettingsView({
   onBack,
   onAutoLockChanged,
@@ -58,6 +66,15 @@ function SettingsView({
     useState<string | null>(null);
 
   const [hasSavedRecoveryKey, setHasSavedRecoveryKey] =
+    useState(false);
+
+  const [hasAcknowledgedRecoveryReplacement, setHasAcknowledgedRecoveryReplacement] =
+    useState(false);
+
+  const [isCopied, setIsCopied] =
+    useState(false);
+
+  const [isCopying, setIsCopying] =
     useState(false);
 
   const [error, setError] =
@@ -124,6 +141,9 @@ function SettingsView({
     setConfirmPassword("");
     setRecoveryKey(null);
     setHasSavedRecoveryKey(false);
+    setHasAcknowledgedRecoveryReplacement(false);
+    setIsCopied(false);
+    setIsCopying(false);
   }
 
   function returnToDashboard() {
@@ -135,9 +155,16 @@ function SettingsView({
     setConfirmPassword("");
     setRecoveryKey(null);
     setHasSavedRecoveryKey(false);
+    setHasAcknowledgedRecoveryReplacement(false);
+    setIsCopied(false);
+    setIsCopying(false);
   }
 
   async function changeMasterPassword() {
+    if (isChanging) {
+      return;
+    }
+
     setError("");
     setSuccess("");
 
@@ -197,6 +224,10 @@ function SettingsView({
   }
 
   async function generateNewRecoveryKey() {
+    if (isGeneratingRecoveryKey) {
+      return;
+    }
+
     setError("");
     setSuccess("");
     setIsGeneratingRecoveryKey(true);
@@ -212,6 +243,7 @@ function SettingsView({
       );
 
       setHasSavedRecoveryKey(false);
+      setIsCopied(false);
     } catch (error) {
       console.error(
         "Failed to generate recovery key:",
@@ -219,10 +251,42 @@ function SettingsView({
       );
 
       setError(
-        String(error)
+        "Could not generate a new recovery key. Please try again."
       );
     } finally {
       setIsGeneratingRecoveryKey(false);
+    }
+  }
+
+  async function copyRecoveryKey() {
+    if (!recoveryKey || isCopying) {
+      return;
+    }
+
+    setIsCopying(true);
+
+    try {
+      await navigator.clipboard.writeText(
+        recoveryKey
+      );
+
+      setIsCopied(true);
+      setError("");
+
+      setTimeout(() => {
+        setIsCopied(false);
+      }, 1500);
+    } catch (error) {
+      console.error(
+        "Failed to copy recovery key:",
+        error
+      );
+
+      setError(
+        "Could not copy the recovery key."
+      );
+    } finally {
+      setIsCopying(false);
     }
   }
 
@@ -236,6 +300,9 @@ function SettingsView({
 
     setRecoveryKey(null);
     setHasSavedRecoveryKey(false);
+    setHasAcknowledgedRecoveryReplacement(false);
+    setIsCopied(false);
+    setIsCopying(false);
 
     setSuccess(
       "Recovery key updated successfully."
@@ -329,13 +396,13 @@ function SettingsView({
         </header>
 
         {error && (
-          <p className="setup-error">
+          <p className="setup-error" role="alert">
             {error}
           </p>
         )}
 
         {success && (
-          <p className="settings-success">
+          <p className="settings-success" role="status">
             {success}
           </p>
         )}
@@ -406,16 +473,23 @@ function SettingsView({
           <div className="settings-card-grid">
             <div className="settings-card settings-card-static">
               <div>
-                <strong>
-                  Auto Lock
-                </strong>
+                <label
+                  className="settings-card-label"
+                  htmlFor="auto-lock-select"
+                >
+                  <strong>
+                    Auto Lock
+                  </strong>
+                </label>
 
-                <span>
+                <span id="auto-lock-description">
                   Automatically lock the vault after a period of inactivity.
                 </span>
               </div>
 
               <select
+                id="auto-lock-select"
+                aria-describedby="auto-lock-description"
                 value={autoLockSeconds}
                 onChange={(event) =>
                   handleAutoLockChange(
@@ -456,16 +530,23 @@ function SettingsView({
           <div className="settings-card-grid">
             <div className="settings-card settings-card-static">
               <div>
-                <strong>
-                  Theme
-                </strong>
+                <label
+                  className="settings-card-label"
+                  htmlFor="theme-select"
+                >
+                  <strong>
+                    Theme
+                  </strong>
+                </label>
 
-                <span>
+                <span id="theme-description">
                   Choose the appearance of KeyVault.
                 </span>
               </div>
 
               <select
+                id="theme-select"
+                aria-describedby="theme-description"
                 value={theme}
                 onChange={(event) =>
                   handleThemeChange(
@@ -515,7 +596,13 @@ function SettingsView({
           </p>
         </div>
 
-        <div className="settings-form">
+        <form
+          className="settings-form"
+          onSubmit={(event: FormEvent<HTMLFormElement>) => {
+            event.preventDefault();
+            void changeMasterPassword();
+          }}
+        >
           <label>
             <span>
               Current master password
@@ -572,29 +659,27 @@ function SettingsView({
           </label>
 
           {error && (
-            <p className="setup-error">
+            <p className="setup-error" role="alert">
               {error}
             </p>
           )}
 
           {success && (
-            <p className="settings-success">
+            <p className="settings-success" role="status">
               {success}
             </p>
           )}
 
           <button
+            type="submit"
             className="primary-button"
-            onClick={
-              changeMasterPassword
-            }
             disabled={isChanging}
           >
             {isChanging
               ? "Changing Password..."
               : "Change Password"}
           </button>
-        </div>
+        </form>
       </section>
     );
   }
@@ -623,8 +708,59 @@ function SettingsView({
           </div>
 
           <div className="settings-form">
-            <div className="recovery-key">
-              {recoveryKey}
+            <div className="recovery-key-section">
+              <div className="recovery-key-header">
+                <div>
+                  <span className="recovery-key-label">
+                    Your new recovery key
+                  </span>
+
+                  <span className="recovery-key-meta">
+                    64 characters
+                  </span>
+                </div>
+
+                <span className="recovery-key-private">
+                  Keep private
+                </span>
+              </div>
+
+              <div className="recovery-key-container">
+                <code className="recovery-key">
+                  {formatRecoveryKey(
+                    recoveryKey
+                  )}
+                </code>
+
+                <button
+                  type="button"
+                  className="secondary-button recovery-copy-button"
+                  onClick={copyRecoveryKey}
+                  disabled={isCopying}
+                >
+                  {isCopying
+                    ? "Copying..."
+                    : isCopied
+                    ? "Copied"
+                    : "Copy recovery key"}
+                </button>
+              </div>
+
+              {isCopied && (
+                <p className="settings-success" role="status">
+                  Recovery key copied to the clipboard.
+                </p>
+              )}
+
+              <div className="recovery-key-warning">
+                <span className="recovery-warning-icon">
+                  !
+                </span>
+
+                <p>
+                  Anyone with this key can recover your vault. KeyVault cannot show it to you again.
+                </p>
+              </div>
             </div>
 
             <label className="recovery-confirmation">
@@ -646,7 +782,7 @@ function SettingsView({
             </label>
 
             {error && (
-              <p className="setup-error">
+              <p className="setup-error" role="alert">
                 {error}
               </p>
             )}
@@ -656,6 +792,7 @@ function SettingsView({
               onClick={
                 confirmRecoveryKey
               }
+              disabled={!hasSavedRecoveryKey}
             >
               Continue
             </button>
@@ -690,8 +827,27 @@ function SettingsView({
             Generating a new recovery key will invalidate your existing recovery key.
           </p>
 
+          <label className="recovery-confirmation">
+            <input
+              type="checkbox"
+              checked={
+                hasAcknowledgedRecoveryReplacement
+              }
+              onChange={(event) =>
+                setHasAcknowledgedRecoveryReplacement(
+                  event.target.checked
+                )
+              }
+              disabled={isGeneratingRecoveryKey}
+            />
+
+            <span>
+              I understand that generating a new key will invalidate my existing recovery key.
+            </span>
+          </label>
+
           {error && (
-            <p className="setup-error">
+            <p className="setup-error" role="alert">
               {error}
             </p>
           )}
@@ -702,7 +858,8 @@ function SettingsView({
               generateNewRecoveryKey
             }
             disabled={
-              isGeneratingRecoveryKey
+              isGeneratingRecoveryKey ||
+              !hasAcknowledgedRecoveryReplacement
             }
           >
             {isGeneratingRecoveryKey

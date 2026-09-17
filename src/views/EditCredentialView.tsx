@@ -9,7 +9,7 @@ import SecretInput from "../components/SecretInput";
 type EditCredentialViewProps = {
   credential: Credential;
   onBack: () => void;
-  onCredentialUpdated: () => void;
+  onCredentialUpdated: () => Promise<void>;
 };
 
 function EditCredentialView({
@@ -118,7 +118,20 @@ function EditCredentialView({
         }
       );
 
-      onCredentialUpdated();
+      try {
+        await onCredentialUpdated();
+      } catch (error) {
+        console.error(
+          "Credential updated but details refresh failed:",
+          error
+        );
+
+        setError(
+          "Credential updated, but the details could not be refreshed. Please try again."
+        );
+        return;
+      }
+
     } catch (error) {
       console.error(
         "Failed to update credential:",
@@ -172,10 +185,11 @@ function EditCredentialView({
           onSubmit={handleSubmit}
         >
           <div className="form-grid">
-            <label>
+            <label htmlFor="edit-title">
               <span>Title</span>
 
               <input
+                id="edit-title"
                 value={title}
                 onChange={(event) =>
                   setTitle(
@@ -187,10 +201,11 @@ function EditCredentialView({
               />
             </label>
 
-            <label>
+            <label htmlFor="edit-provider">
               <span>Provider</span>
 
               <input
+                id="edit-provider"
                 value={provider}
                 onChange={(event) =>
                   setProvider(
@@ -202,12 +217,13 @@ function EditCredentialView({
               />
             </label>
 
-            <label>
+            <label htmlFor="edit-credential-type">
               <span>
                 Credential type
               </span>
 
               <select
+                id="edit-credential-type"
                 value={credentialType}
                 onChange={(event) =>
                   setCredentialType(
@@ -234,46 +250,56 @@ function EditCredentialView({
               </select>
             </label>
 
-            <label>
-              <span>
-                API Key
-              </span>
+            <div className="form-field">
+              <label htmlFor="edit-api-key">
+                <span>
+                  API Key
+                </span>
+              </label>
 
               <SecretInput
+                id="edit-api-key"
+                label="API key"
                 value={apiKey}
                 onChange={setApiKey}
                 placeholder="Enter API key"
+                describedBy="edit-api-key-help"
                 disabled={isSaving}
               />
 
-              <small>
+              <small id="edit-api-key-help">
                 The secret value used to
                 authenticate with the provider.
               </small>
-            </label>
+            </div>
 
-            <label>
-              <span>
-                Secret Key{" "}
-                <small>
-                  Optional
-                </small>
-              </span>
+            <div className="form-field">
+              <label htmlFor="edit-secret-key">
+                <span>
+                  Secret Key{" "}
+                  <small>
+                    Optional
+                  </small>
+                </span>
+              </label>
 
               <SecretInput
+                id="edit-secret-key"
+                label="secret key"
                 value={secretKey}
                 onChange={setSecretKey}
                 placeholder="Enter secret key"
+                describedBy="edit-secret-key-help"
                 disabled={isSaving}
               />
 
-              <small>
+              <small id="edit-secret-key-help">
                 Use this for credentials that
                 require a second secret value.
               </small>
-            </label>
+            </div>
 
-            <label>
+            <label htmlFor="edit-tags">
               <span>
                 Tags{" "}
                 <small>
@@ -282,6 +308,7 @@ function EditCredentialView({
               </span>
 
               <input
+                id="edit-tags"
                 value={tags}
                 onChange={(event) =>
                   setTags(
@@ -297,7 +324,10 @@ function EditCredentialView({
               </small>
             </label>
 
-            <label className="full-width">
+            <label
+              className="full-width"
+              htmlFor="edit-notes"
+            >
               <span>
                 Notes{" "}
                 <small>
@@ -306,6 +336,7 @@ function EditCredentialView({
               </span>
 
               <textarea
+                id="edit-notes"
                 value={notes}
                 onChange={(event) =>
                   setNotes(
@@ -320,7 +351,7 @@ function EditCredentialView({
           </div>
 
           {error && (
-            <p className="setup-error">
+            <p className="setup-error" role="alert">
               {error}
             </p>
           )}

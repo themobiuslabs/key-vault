@@ -9,7 +9,7 @@ Built with **Tauri, React, TypeScript, Rust, and SQLite**.
 > [!WARNING]
 > KeyVault is currently under active development and is **not production-ready**.
 >
-> Encryption has not yet been implemented. Do not store real production credentials in the current version.
+> Treat it as a v1 development release and evaluate it carefully before storing production credentials.
 
 ## Why KeyVault?
 
@@ -20,13 +20,14 @@ KeyVault aims to provide a simple, private place to manage them locally — with
 ### Principles
 
 - 🔒 **Local-first** — Your vault stays on your machine.
+- 🔐 **Encrypted storage** — Credential data is encrypted before it is persisted locally.
 - 🛡️ **Privacy-focused** — No cloud dependency for the core application.
 - 🧑‍💻 **Developer-focused** — Built around API keys and developer credentials.
 - 🌱 **Open source** — Developed openly and available for everyone to inspect.
 
 ## Current Status
 
-KeyVault is in early development.
+KeyVault is in active v1 development.
 
 Currently implemented:
 
@@ -34,12 +35,19 @@ Currently implemented:
 - React + TypeScript interface
 - Rust backend
 - SQLite local storage
-- Credential creation
+- Master-password-protected vault
+- Encrypted credential persistence
+- Credential creation, editing, and deletion
 - API keys and optional secret keys
 - Tags and notes
+- Credential search and filtering
+- Recovery-key generation and vault recovery
+- Auto-lock
+- System, light, and dark themes
 - Local application logging
+- 22 passing Rust unit tests covering cryptography, vault state, migrations, settings, and credential storage behavior
 
-Encryption and the rest of the credential-management functionality are still being developed.
+The current v1 scope is implemented, but the project remains under active development and is not yet a production release.
 
 ## Tech Stack
 

@@ -6,7 +6,7 @@ type CredentialDetailsViewProps = {
   credential: Credential;
   onBack: () => void;
   onEdit: () => void;
-  onCredentialDeleted: () => void;
+  onCredentialDeleted: () => Promise<void>;
 };
 
 function formatDate(
@@ -37,6 +37,14 @@ function CredentialDetailsView({
       "api_key" | "secret_key" | null
     >(null);
 
+  const [copyingField, setCopyingField] =
+    useState<
+      "api_key" | "secret_key" | null
+    >(null);
+
+  const [actionError, setActionError] =
+    useState("");
+
   const [
     showDeleteConfirmation,
     setShowDeleteConfirmation,
@@ -57,6 +65,13 @@ function CredentialDetailsView({
       | "api_key"
       | "secret_key"
   ) {
+    if (copyingField) {
+      return;
+    }
+
+    setActionError("");
+    setCopyingField(field);
+
     try {
       await navigator.clipboard.writeText(
         value
@@ -78,10 +93,21 @@ function CredentialDetailsView({
         "Failed to copy credential:",
         error
       );
+
+      setActionError(
+        "Could not copy this credential value. Please try again."
+      );
+    } finally {
+      setCopyingField(null);
     }
   }
 
   async function deleteCredential() {
+    if (isDeleting) {
+      return;
+    }
+
+    setActionError("");
     setIsDeleting(true);
 
     try {
@@ -89,13 +115,17 @@ function CredentialDetailsView({
         id: credential.id,
       });
 
-      onCredentialDeleted();
+      await onCredentialDeleted();
     } catch (error) {
       console.error(
         "Failed to delete credential:",
         error
       );
 
+      setActionError(
+        "Could not delete this credential. Please try again."
+      );
+    } finally {
       setIsDeleting(false);
     }
   }
@@ -131,6 +161,18 @@ function CredentialDetailsView({
       </header>
 
       <section className="card">
+        {actionError && (
+          <p className="setup-error" role="alert">
+            {actionError}
+          </p>
+        )}
+
+        {copiedField && (
+          <p className="settings-success" role="status">
+            Copied {copiedField === "api_key" ? "API key" : "secret key"} to the clipboard.
+          </p>
+        )}
+
         <div className="details-grid">
           <div className="detail">
             <span className="detail-label">
@@ -183,6 +225,9 @@ function CredentialDetailsView({
                     "api_key"
                   )
                 }
+                disabled={
+                  copyingField === "api_key"
+                }
               >
                 {copiedField ===
                 "api_key"
@@ -225,6 +270,9 @@ function CredentialDetailsView({
                       credential.secret_key!,
                       "secret_key"
                     )
+                  }
+                  disabled={
+                    copyingField === "secret_key"
                   }
                 >
                   {copiedField ===

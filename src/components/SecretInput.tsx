@@ -1,18 +1,24 @@
 import { useState } from "react";
 
 type SecretInputProps = {
+  id: string;
+  label: string;
   value: string;
   onChange: (
     value: string
   ) => void;
   placeholder: string;
+  describedBy?: string;
   disabled?: boolean;
 };
 
 function SecretInput({
+  id,
+  label,
   value,
   onChange,
   placeholder,
+  describedBy,
   disabled = false,
 }: SecretInputProps) {
   const [isVisible, setIsVisible] =
@@ -21,6 +27,7 @@ function SecretInput({
   return (
     <div className="secret-input">
       <input
+        id={id}
         type={
           isVisible
             ? "text"
@@ -33,6 +40,7 @@ function SecretInput({
           )
         }
         placeholder={placeholder}
+        aria-describedby={describedBy}
         autoComplete="off"
         disabled={disabled}
       />
@@ -40,6 +48,9 @@ function SecretInput({
       <button
         type="button"
         className="secret-toggle"
+        aria-label={`${isVisible ? "Hide" : "Show"} ${label}`}
+        aria-controls={id}
+        aria-pressed={isVisible}
         onClick={() =>
           setIsVisible(
             !isVisible

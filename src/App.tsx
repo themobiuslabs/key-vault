@@ -35,6 +35,15 @@ function App() {
   const [appError, setAppError] =
     useState("");
 
+  const [startupError, setStartupError] =
+    useState("");
+
+  const [lockError, setLockError] =
+    useState("");
+
+  const [isLocking, setIsLocking] =
+    useState(false);
+
   const [selectedCredential, setSelectedCredential] =
     useState<Credential | null>(null);
 
@@ -51,6 +60,10 @@ function App() {
     useState(false);
 
   async function checkVaultStatus() {
+    setStartupError("");
+    setVaultInitialized(null);
+    setVaultUnlocked(false);
+
     try {
       const initialized = await invoke<boolean>(
         "is_vault_initialized"
@@ -71,8 +84,8 @@ function App() {
         error
       );
 
-      setAppError(
-        "KeyVault could not check the vault status."
+      setStartupError(
+        "KeyVault could not open your vault right now."
       );
     }
   }
@@ -215,12 +228,20 @@ function App() {
   ]);
 
   async function handleLock() {
+    if (isLocking) {
+      return;
+    }
+
+    setLockError("");
+    setIsLocking(true);
+
     try {
       await invoke("lock_vault");
 
       setCredentials([]);
       setSelectedCredential(null);
       setAppError("");
+      setLockError("");
       setVaultUnlocked(false);
       setView("credentials");
     } catch (error) {
@@ -228,6 +249,12 @@ function App() {
         "Failed to lock vault:",
         error
       );
+
+      setLockError(
+        "Could not lock the vault. Please try again."
+      );
+    } finally {
+      setIsLocking(false);
     }
   }
 
@@ -278,11 +305,45 @@ function App() {
   }
 
   async function handleCredentialDeleted() {
-    setSelectedCredential(null);
-
     await loadCredentials();
-
+    setSelectedCredential(null);
     setView("credentials");
+  }
+
+  if (startupError) {
+    return (
+      <div
+        className="app-root"
+        data-theme={theme}
+      >
+        <main className="startup-screen">
+          <section
+            className="startup-card"
+            role="alert"
+          >
+            <div className="logo">
+              <div className="logo-mark">K</div>
+
+              <span>KeyVault</span>
+            </div>
+
+            <h1>Vault unavailable</h1>
+
+            <p className="subtitle">
+              {startupError} Please try again.
+            </p>
+
+            <button
+              className="primary-button"
+              onClick={checkVaultStatus}
+              type="button"
+            >
+              Try again
+            </button>
+          </section>
+        </main>
+      </div>
+    );
   }
 
   if (
@@ -290,7 +351,22 @@ function App() {
     !themeLoaded ||
     !autoLockLoaded
   ) {
-    return null;
+    return (
+      <div
+        className="app-root"
+        data-theme={theme}
+      >
+        <main
+          className="startup-screen"
+          aria-busy="true"
+          aria-live="polite"
+        >
+          <p className="startup-loading">
+            Opening KeyVault...
+          </p>
+        </main>
+      </div>
+    );
   }
 
   if (!vaultInitialized) {
@@ -335,8 +411,14 @@ function App() {
 
       <main className="main">
         {appError && (
-          <div className="setup-error">
+          <div className="setup-error" role="alert">
             {appError}
+          </div>
+        )}
+
+        {lockError && (
+          <div className="setup-error" role="alert">
+            {lockError}
           </div>
         )}
 
@@ -350,8 +432,12 @@ function App() {
           <button
             className="secondary-button"
             onClick={handleLock}
+            type="button"
+            disabled={isLocking}
           >
-            Lock Vault
+            {isLocking
+              ? "Locking..."
+              : "Lock Vault"}
           </button>
         </div>
 

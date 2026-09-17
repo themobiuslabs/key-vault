@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 type UnlockMode =
@@ -35,6 +35,10 @@ function UnlockVaultView({
     useState(false);
 
   async function unlockWithPassword() {
+    if (isUnlocking) {
+      return;
+    }
+
     setError("");
     setIsUnlocking(true);
 
@@ -69,6 +73,10 @@ function UnlockVaultView({
   }
 
   async function verifyRecoveryKey() {
+    if (isUnlocking) {
+      return;
+    }
+
     setError("");
     setIsUnlocking(true);
 
@@ -95,6 +103,10 @@ function UnlockVaultView({
   }
 
   async function resetMasterPassword() {
+    if (isUnlocking) {
+      return;
+    }
+
     setError("");
 
     if (newPassword.length < 8) {
@@ -153,6 +165,28 @@ function UnlockVaultView({
     setConfirmPassword("");
   }
 
+  async function handleSubmit(
+    event: FormEvent<HTMLFormElement>
+  ) {
+    event.preventDefault();
+
+    if (isUnlocking) {
+      return;
+    }
+
+    if (mode === "password") {
+      await unlockWithPassword();
+      return;
+    }
+
+    if (mode === "recovery") {
+      await verifyRecoveryKey();
+      return;
+    }
+
+    await resetMasterPassword();
+  }
+
   return (
     <main className="setup-screen">
       <section className="setup-card">
@@ -190,7 +224,10 @@ function UnlockVaultView({
             "Your recovery key was verified. Create a new master password for your vault."}
         </p>
 
-        <div className="setup-form">
+        <form
+          className="setup-form"
+          onSubmit={handleSubmit}
+        >
           {mode === "password" && (
             <>
               <label>
@@ -206,16 +243,6 @@ function UnlockVaultView({
                       event.target.value
                     )
                   }
-                  onKeyDown={(event) => {
-                    if (
-                      event.key ===
-                        "Enter" &&
-                      !isUnlocking &&
-                      password.length > 0
-                    ) {
-                      unlockWithPassword();
-                    }
-                  }}
                   placeholder="Enter master password"
                   autoFocus
                   autoComplete="current-password"
@@ -223,16 +250,14 @@ function UnlockVaultView({
               </label>
 
               {error && (
-                <p className="setup-error">
+                <p className="setup-error" role="alert">
                   {error}
                 </p>
               )}
 
               <button
+                type="submit"
                 className="primary-button"
-                onClick={
-                  unlockWithPassword
-                }
                 disabled={
                   isUnlocking ||
                   password.length === 0
@@ -244,6 +269,7 @@ function UnlockVaultView({
               </button>
 
               <button
+                type="button"
                 className="secondary-button"
                 onClick={
                   startRecovery
@@ -270,17 +296,6 @@ function UnlockVaultView({
                       event.target.value
                     )
                   }
-                  onKeyDown={(event) => {
-                    if (
-                      event.key ===
-                        "Enter" &&
-                      !isUnlocking &&
-                      recoveryKey.trim()
-                        .length > 0
-                    ) {
-                      verifyRecoveryKey();
-                    }
-                  }}
                   placeholder="Enter recovery key"
                   autoFocus
                   autoComplete="off"
@@ -289,16 +304,14 @@ function UnlockVaultView({
               </label>
 
               {error && (
-                <p className="setup-error">
+                <p className="setup-error" role="alert">
                   {error}
                 </p>
               )}
 
               <button
+                type="submit"
                 className="primary-button"
-                onClick={
-                  verifyRecoveryKey
-                }
                 disabled={
                   isUnlocking ||
                   recoveryKey.trim()
@@ -311,6 +324,7 @@ function UnlockVaultView({
               </button>
 
               <button
+                type="button"
                 className="secondary-button"
                 onClick={
                   switchToPassword
@@ -337,18 +351,6 @@ function UnlockVaultView({
                       event.target.value
                     )
                   }
-                  onKeyDown={(event) => {
-                    if (
-                      event.key ===
-                        "Enter" &&
-                      !isUnlocking &&
-                      newPassword.length > 0 &&
-                      confirmPassword.length >
-                        0
-                    ) {
-                      resetMasterPassword();
-                    }
-                  }}
                   placeholder="Enter new master password"
                   autoFocus
                   autoComplete="new-password"
@@ -376,16 +378,14 @@ function UnlockVaultView({
               </label>
 
               {error && (
-                <p className="setup-error">
+                <p className="setup-error" role="alert">
                   {error}
                 </p>
               )}
 
               <button
+                type="submit"
                 className="primary-button"
-                onClick={
-                  resetMasterPassword
-                }
                 disabled={
                   isUnlocking ||
                   newPassword.length ===
@@ -400,7 +400,7 @@ function UnlockVaultView({
               </button>
             </>
           )}
-        </div>
+        </form>
       </section>
     </main>
   );

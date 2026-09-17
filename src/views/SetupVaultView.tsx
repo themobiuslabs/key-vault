@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 type SetupVaultViewProps = {
@@ -27,7 +27,14 @@ function SetupVaultView({
   const [isCopied, setIsCopied] =
     useState(false);
 
+  const [isCopying, setIsCopying] =
+    useState(false);
+
   async function createVault() {
+    if (isCreating) {
+      return;
+    }
+
     setError("");
 
     if (password.length < 8) {
@@ -62,16 +69,20 @@ function SetupVaultView({
         error
       );
 
-      setError(String(error));
+      setError(
+        "Could not create your vault. Please try again."
+      );
     } finally {
       setIsCreating(false);
     }
   }
 
   async function copyRecoveryKey() {
-    if (!recoveryKey) {
+    if (!recoveryKey || isCopying) {
       return;
     }
+
+    setIsCopying(true);
 
     try {
       await navigator.clipboard.writeText(
@@ -93,6 +104,8 @@ function SetupVaultView({
       setError(
         "Could not copy the recovery key."
       );
+    } finally {
+      setIsCopying(false);
     }
   }
 
@@ -105,6 +118,11 @@ function SetupVaultView({
     }
 
     onVaultInitialized();
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void createVault();
   }
 
   if (recoveryKey) {
@@ -165,12 +183,21 @@ function SetupVaultView({
                 onClick={
                   copyRecoveryKey
                 }
+                disabled={isCopying}
               >
-                {isCopied
+                {isCopying
+                  ? "Copying..."
+                  : isCopied
                   ? "Copied"
                   : "Copy recovery key"}
               </button>
             </div>
+
+            {isCopied && (
+              <p className="settings-success" role="status">
+                Recovery key copied to the clipboard.
+              </p>
+            )}
 
             <div className="recovery-key-warning">
               <span className="recovery-warning-icon">
@@ -206,7 +233,7 @@ function SetupVaultView({
           </label>
 
           {error && (
-            <p className="setup-error">
+            <p className="setup-error" role="alert">
               {error}
             </p>
           )}
@@ -245,13 +272,17 @@ function SetupVaultView({
           protect your credentials.
         </p>
 
-        <div className="setup-form">
+        <form
+          className="setup-form"
+          onSubmit={handleSubmit}
+        >
           <label>
             <span>Master password</span>
 
             <input
               type="password"
               value={password}
+              disabled={isCreating}
               onChange={(event) =>
                 setPassword(
                   event.target.value
@@ -267,6 +298,7 @@ function SetupVaultView({
             <input
               type="password"
               value={confirmPassword}
+              disabled={isCreating}
               onChange={(event) =>
                 setConfirmPassword(
                   event.target.value
@@ -277,21 +309,21 @@ function SetupVaultView({
           </label>
 
           {error && (
-            <p className="setup-error">
+            <p className="setup-error" role="alert">
               {error}
             </p>
           )}
 
           <button
+            type="submit"
             className="primary-button"
-            onClick={createVault}
             disabled={isCreating}
           >
             {isCreating
               ? "Creating vault..."
               : "Create Vault"}
           </button>
-        </div>
+        </form>
       </section>
     </main>
   );

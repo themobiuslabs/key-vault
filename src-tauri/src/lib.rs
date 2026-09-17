@@ -283,7 +283,6 @@ fn reset_master_password_with_recovery(
 fn recover_vault(
     app: tauri::AppHandle,
     recovery_key: String,
-    state: tauri::State<'_, vault::VaultState>,
 ) -> Result<(), String> {
     let (
         _salt,
@@ -321,13 +320,10 @@ fn recover_vault(
             &recovery_salt,
         )?;
 
-    let vek =
-        crypto::unwrap_vault_key(
-            &recovery_kek,
-            &recovery_wrapped_vek,
-        )?;
-
-    state.unlock(vek)?;
+    crypto::unwrap_vault_key(
+        &recovery_kek,
+        &recovery_wrapped_vek,
+    )?;
 
     Ok(())
 }
