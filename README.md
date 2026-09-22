@@ -9,7 +9,7 @@ Built with **Tauri, React, TypeScript, Rust, and SQLite**.
 > [!WARNING]
 > Key Vault is currently under active development and is **not production-ready**.
 >
-> Treat it as a v1 development release and evaluate it carefully before storing production credentials.
+> This is an early development release (`v0.1.0`). Evaluate it carefully before storing production credentials.
 
 ## Why Key Vault?
 
@@ -27,7 +27,7 @@ Key Vault aims to provide a simple, private place to manage them locally — wit
 
 ## Current Status
 
-Key Vault is in active v1 development.
+Key Vault is in active `0.x` development.
 
 Currently implemented:
 
@@ -47,7 +47,7 @@ Currently implemented:
 - Local application logging
 - 22 passing Rust unit tests covering cryptography, vault state, migrations, settings, and credential storage behavior
 
-The current v1 scope is implemented, but the project remains under active development and is not yet a production release.
+The current `0.1.0` scope is implemented, but the project remains under active development and is not yet considered a production release.
 
 ## Tech Stack
 
@@ -71,14 +71,3 @@ git clone https://github.com/themobiuslabs/key-vault.git
 cd key-vault
 npm install
 npm run tauri dev
-```
-
-## Building in Public
-
-Key Vault is being developed openly as an open-source project and learning journey, with a focus on **Rust, Tauri, local-first software, and secure credential management**.
-
-## License
-
-Key Vault source code is licensed under the [MIT License](LICENSE).
-
-The “Key Vault” name and Key Vault logo are project branding. The MIT License applies to the source code; it does not grant permission to imply that a modified or forked version is the official Key Vault project.
