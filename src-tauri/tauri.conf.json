@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "keyvault",
+  "productName": "Key Vault",
   "version": "0.1.0",
   "identifier": "com.mobiuslab.keyvault",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "KeyVault",
+        "title": "Key Vault",
         "width": 1200,
         "height": 800,
         "resizable": true,
@@ -26,6 +26,9 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "category": "Utility",
+    "shortDescription": "A local-first desktop credential vault",
+    "longDescription": "Key Vault is a local-first desktop application for managing API keys and developer credentials locally.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

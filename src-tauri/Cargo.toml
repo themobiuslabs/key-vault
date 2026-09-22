@@ -1,8 +1,9 @@
 [package]
 name = "keyvault"
 version = "0.1.0"
-description = "A local-first developer credential vault"
-authors = ["you"]
+description = "A local-first desktop credential vault for developers"
+authors = ["CyberNomad02"]
+repository = "https://github.com/themobiuslabs/key-vault.git"
 edition = "2021"
 
 [lib]

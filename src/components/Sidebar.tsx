@@ -23,11 +23,13 @@ function Sidebar({
   return (
     <aside className="sidebar">
       <div className="logo">
-        <div className="logo-mark">
-          K
-        </div>
+        <img
+          className="logo-image"
+          src="/key-vault-icon.png"
+          alt=""
+        />
 
-        <span>KeyVault</span>
+        <span>Key Vault</span>
       </div>
 
       <nav>

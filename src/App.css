@@ -416,16 +416,13 @@ button:disabled {
   letter-spacing: -0.015em;
 }
 
-.logo-mark {
-  display: grid;
-  place-items: center;
+.logo-image {
+  display: block;
   width: 31px;
   height: 31px;
   border-radius: 9px;
-  background: var(--color-primary-bg);
-  color: var(--color-primary-text);
-  font-size: 14px;
-  font-weight: 750;
+  flex-shrink: 0;
+  object-fit: cover;
 }
 
 /* -------------------------------------------------- */

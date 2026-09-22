@@ -523,7 +523,7 @@ function SettingsView({
             <h2>Appearance</h2>
 
             <p>
-              Customize how KeyVault looks.
+              Customize how Key Vault looks.
             </p>
           </div>
 
@@ -540,7 +540,7 @@ function SettingsView({
                 </label>
 
                 <span id="theme-description">
-                  Choose the appearance of KeyVault.
+                  Choose the appearance of Key Vault.
                 </span>
               </div>
 
@@ -703,7 +703,7 @@ function SettingsView({
             </h2>
 
             <p>
-              This recovery key replaces your previous one. KeyVault will not show it again after you continue.
+              This recovery key replaces your previous one. Key Vault will not show it again after you continue.
             </p>
           </div>
 
@@ -758,7 +758,7 @@ function SettingsView({
                 </span>
 
                 <p>
-                  Anyone with this key can recover your vault. KeyVault cannot show it to you again.
+                  Anyone with this key can recover your vault. Key Vault cannot show it to you again.
                 </p>
               </div>
             </div>

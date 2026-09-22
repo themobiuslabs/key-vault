@@ -627,7 +627,7 @@ pub fn run() {
             logger::log(
                 &app_data_dir,
                 "INFO",
-                "KeyVault started",
+                "Key Vault started",
             )
             .expect(
                 "failed to write startup log"

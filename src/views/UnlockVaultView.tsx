@@ -191,11 +191,13 @@ function UnlockVaultView({
     <main className="setup-screen">
       <section className="setup-card">
         <div className="logo">
-          <div className="logo-mark">
-            K
-          </div>
+          <img
+            className="logo-image"
+            src="/key-vault-icon.png"
+            alt=""
+          />
 
-          <span>KeyVault</span>
+          <span>Key Vault</span>
         </div>
 
         <p className="eyebrow">

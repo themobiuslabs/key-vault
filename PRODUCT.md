@@ -10,7 +10,7 @@ Developers managing API keys and local developer credentials on their own machin
 
 ## Product Purpose
 
-KeyVault provides a simple, private desktop vault for storing developer credentials locally without a cloud account or remote server.
+Key Vault provides a simple, private desktop vault for storing developer credentials locally without a cloud account or remote server.
 
 ## Brand Personality
 

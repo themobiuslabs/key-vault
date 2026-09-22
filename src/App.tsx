@@ -85,7 +85,7 @@ function App() {
       );
 
       setStartupError(
-        "KeyVault could not open your vault right now."
+        "Key Vault could not open your vault right now."
       );
     }
   }
@@ -108,7 +108,7 @@ function App() {
       );
 
       setAppError(
-        "KeyVault could not read your credentials. Your vault may be corrupted or unavailable."
+        "Key Vault could not read your credentials. Your vault may be corrupted or unavailable."
       );
 
       throw error;
@@ -322,9 +322,13 @@ function App() {
             role="alert"
           >
             <div className="logo">
-              <div className="logo-mark">K</div>
+              <img
+                className="logo-image"
+                src="/key-vault-icon.png"
+                alt=""
+              />
 
-              <span>KeyVault</span>
+              <span>Key Vault</span>
             </div>
 
             <h1>Vault unavailable</h1>
@@ -362,7 +366,7 @@ function App() {
           aria-live="polite"
         >
           <p className="startup-loading">
-            Opening KeyVault...
+            Opening Key Vault...
           </p>
         </main>
       </div>
