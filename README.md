@@ -1,21 +1,21 @@
-# KeyVault
+# Key Vault
 
 **A local-first, open-source credential vault for developers.**
 
-KeyVault is a lightweight desktop application for managing API keys and developer credentials locally.
+Key Vault is a lightweight desktop application for managing API keys and developer credentials locally.
 
 Built with **Tauri, React, TypeScript, Rust, and SQLite**.
 
 > [!WARNING]
-> KeyVault is currently under active development and is **not production-ready**.
+> Key Vault is currently under active development and is **not production-ready**.
 >
 > Treat it as a v1 development release and evaluate it carefully before storing production credentials.
 
-## Why KeyVault?
+## Why Key Vault?
 
 Developers often have API keys and other credentials scattered across `.env` files, notes, text files, and browser tabs.
 
-KeyVault aims to provide a simple, private place to manage them locally — without requiring a cloud account or remote server.
+Key Vault aims to provide a simple, private place to manage them locally — without requiring a cloud account or remote server.
 
 ### Principles
 
@@ -27,7 +27,7 @@ KeyVault aims to provide a simple, private place to manage them locally — with
 
 ## Current Status
 
-KeyVault is in active v1 development.
+Key Vault is in active v1 development.
 
 Currently implemented:
 
@@ -67,16 +67,18 @@ The current v1 scope is implemented, but the project remains under active develo
 ### Run locally
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/keyvault.git
-cd keyvault
+git clone https://github.com/themobiuslabs/key-vault.git
+cd key-vault
 npm install
 npm run tauri dev
 ```
 
 ## Building in Public
 
-KeyVault is being developed openly as an open-source project and learning journey, with a focus on **Rust, Tauri, local-first software, and secure credential management**.
+Key Vault is being developed openly as an open-source project and learning journey, with a focus on **Rust, Tauri, local-first software, and secure credential management**.
 
 ## License
 
-KeyVault is open source. A license will be added before the first public release.
+Key Vault source code is licensed under the [MIT License](LICENSE).
+
+The “Key Vault” name and Key Vault logo are project branding. The MIT License applies to the source code; it does not grant permission to imply that a modified or forked version is the official Key Vault project.
